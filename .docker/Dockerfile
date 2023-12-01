@@ -1,4 +1,4 @@
-FROM rust:1.65
+FROM rust:1.74
 
 ADD entrypoint.sh /entrypoint.sh
 
