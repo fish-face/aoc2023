@@ -16,27 +16,28 @@ fn part1<'a>(lines: impl Iterator<Item = &'a String>) -> usize {
     }).sum()
 }
 
-fn parse_word_digit(line: &str) -> Option<char> {
-    for (ch, word) in [
-        ('0', "zero"),
-        ('1', "one"),
-        ('2', "two"),
-        ('3', "three"),
-        ('4', "four"),
-        ('5', "five"),
-        ('6', "six"),
-        ('7', "seven"),
-        ('8', "eight"),
-        ('9', "nine"),
+fn parse_word_digit(line: &str) -> Option<u8> {
+    for (n, word) in [
+        (0_u8, "zero"),
+        (1_u8, "one"),
+        (2_u8, "two"),
+        (3_u8, "three"),
+        (4_u8, "four"),
+        (5_u8, "five"),
+        (6_u8, "six"),
+        (7_u8, "seven"),
+        (8_u8, "eight"),
+        (9_u8, "nine"),
     ] {
-        if (line.len() >= word.len() && &line[..word.len()] == word) || line.chars().nth(0).unwrap() == ch {
-            return Some(ch);
+        // ASCII 48 == '0'
+        if line.bytes().nth(0).unwrap() == n + 48 || line.starts_with(word) {
+            return Some(n);
         }
     }
     None
 }
 
-fn find_word_digit<'a>(mut initials: impl Iterator<Item = &'a str>) -> char {
+fn find_word_digit<'a>(mut initials: impl Iterator<Item = &'a str>) -> u8 {
     initials.find_map(parse_word_digit).unwrap()
 }
 
@@ -48,7 +49,7 @@ fn part2<'a>(lines: impl Iterator<Item = &'a String>) -> usize {
         let last = find_word_digit((0..(line.len())).rev().map(
                 |i| &line[i..]
         ));
-        format!("{first}{last}").parse::<usize>().unwrap()
+        first as usize * 10 + last as usize
     }).sum()
 }
 
