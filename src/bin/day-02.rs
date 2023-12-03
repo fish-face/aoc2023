@@ -2,6 +2,7 @@ use std::cmp::max;
 use std::iter;
 use pest_typed::{error::Error, ParsableTypedNode as _};
 use pest_typed_derive::TypedParser;
+use num_enum::IntoPrimitive;
 
 use aoc2023::common::read_input_lines;
 
@@ -9,6 +10,12 @@ use aoc2023::common::read_input_lines;
 #[grammar = "day-02.pest"]
 #[emit_rule_reference]
 pub struct GameParser;
+
+#[derive(IntoPrimitive)]
+#[repr(u8)]
+enum Colours {
+    RED, GREEN, BLUE
+}
 
 const CONTENTS: [usize; 3] = [12, 13, 14];
 
@@ -27,13 +34,14 @@ fn parse(line: &String) -> (usize, usize) {
         for draw_part in parts {
             let number = draw_part.number().span.as_str().parse::<usize>().expect("Could not parse number");
             let colour = match draw_part.colour().span.as_str() {
-                "red" => 0,
-                "green" => 1,
-                "blue" => 2,
+                "red" => Colours::RED,
+                "green" => Colours::GREEN,
+                "blue" => Colours::BLUE,
                 _ => { panic!("Invalid colour"); }
             };
-            mins[colour] = max(mins[colour], number);
-            if number > CONTENTS[colour] {
+            let colour_idx: u8 = colour.into();
+            mins[colour_idx as usize] = max(mins[colour_idx as usize], number);
+            if number > CONTENTS[colour_idx as usize] {
                 part1_contribution = 0;
             }
         }
@@ -43,7 +51,6 @@ fn parse(line: &String) -> (usize, usize) {
 
 fn main() {
     let lines: Vec<String> = read_input_lines().expect("Could not read file").collect();
-    // let input = read_input();
 
     let (part1, part2) = lines.iter().map(
         |line| {
