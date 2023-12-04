@@ -1,9 +1,8 @@
-use std::iter;
 use bit_set::BitSet;
-use pest::RuleType;
-use pest_typed::{ParsableTypedNode as _, RuleStruct};
-use pest_typed_derive::TypedParser;
 use aoc2023::common::read_input_lines;
+
+/*
+// slower PEG solution
 
 #[derive(TypedParser)]
 #[grammar = "day-04/cards.pest"]
@@ -30,6 +29,20 @@ fn num_matches(game: &pairs::game) -> usize {
     game_numbers.intersect_with(&have_numbers);
     game_numbers.len()
 }
+ */
+
+fn num_matches(line: &String) -> Option<usize> {
+    let (_, body) = line.split_once(':')?;
+    let (card, have) = body.split_once('|')?;
+    let card_nums = card.split_ascii_whitespace().map(|num| num.parse::<usize>().unwrap());
+    let have_nums = have.split_ascii_whitespace().map(|num| num.parse::<usize>().unwrap());
+
+    let mut card_nums: BitSet<usize> = BitSet::from_iter(card_nums);
+    let have_nums = BitSet::from_iter(have_nums);
+
+    card_nums.intersect_with(&have_nums);
+    Some(card_nums.len())
+}
 
 fn score(num_matches: usize) -> usize {
     if num_matches == 0 {
@@ -40,11 +53,10 @@ fn score(num_matches: usize) -> usize {
 }
 
 fn main() {
-    let lines = read_input_lines().expect("Could not read input").collect::<Vec<_>>();
-    let parsed_games = lines.iter().map(|line| pairs::game::parse(line).unwrap());
-    let num = parsed_games.len();
+    let lines = read_input_lines().expect("Could not read input");
 
-    let matches = parsed_games.map(|game| num_matches(&game)).collect::<Vec<_>>();
+    let matches = lines.map(|line| num_matches(&line).expect("Could not parse a line")).collect::<Vec<_>>();
+    let num = matches.len();
 
     let part1 = matches.iter().map(|matches| score(*matches)).sum::<usize>();
     println!("{}", part1);
