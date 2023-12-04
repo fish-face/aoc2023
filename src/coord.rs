@@ -35,6 +35,42 @@ impl<T: Mul<Output = T> + Add + Copy> Pt<T> {
     }
 }
 
+impl Pt<usize> {
+    pub fn neighbours4(self) -> Vec<Self> {
+        let Pt(x, y) = self;
+        let mut result = vec![Pt(x+1, y), Pt(x, y+1)];
+        if x > 0 {
+            result.push(Pt(x - 1, y));
+        }
+        if y > 0 {
+            result.push(Pt(x, y - 1));
+        }
+        result
+    }
+
+    pub fn neighbours8(self) -> Vec<Self> {
+        let Pt(x, y) = self;
+        let mut result = vec![];
+        if y > 0 {
+            if x > 0 {
+                result.push(Pt(x - 1, y - 1));
+            }
+            result.push(Pt(x, y - 1));
+            result.push(Pt(x + 1, y - 1));
+        }
+        if x > 0 {
+            result.push(Pt(x - 1, y));
+        }
+        result.push(Pt(x + 1, y));
+        if x > 0 {
+            result.push(Pt(x - 1, y + 1));
+        }
+        result.push(Pt(x    , y + 1));
+        result.push(Pt(x + 1, y + 1));
+        result
+    }
+}
+
 impl Pt<isize> {
     pub fn neighbours4(self) -> [Self; 4] {
         let Pt(x, y) = self;

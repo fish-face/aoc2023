@@ -1,11 +1,11 @@
 use std::cmp::max;
+use std::collections::hash_map::RandomState;
+use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::ops::{Index, IndexMut};
-// use std::iter::{repeat, zip};
 use anyhow::{Result};
 use thiserror::Error;
 use crate::coord::Pt;
-// use crate::coord::Coord;
 
 #[derive(Debug, Clone, Eq)]
 pub struct Grid<T> {
@@ -30,6 +30,20 @@ impl<T> Grid<T> {
         let mut p = Grid{width, height, data: Vec::new()};
         p.data = data.into();
         p
+    }
+    // pub fn from_row_data(rows: impl Iterator<Item = impl Into<Vec<T>> /*+ ExactSizeIterator<T>*/>) -> Grid<T> {
+    pub fn from_row_data(rows: impl Iterator<Item = impl IntoIterator<Item = T>>) -> Grid<T> {
+        let mut grid = Grid{height: 0, width: 0, data: Vec::new()};
+        for row in rows {
+            for elt in row.into_iter() {
+                grid.data.push(elt);
+                if grid.height == 0 {
+                    grid.width += 1;
+                }
+            }
+            grid.height += 1;
+        }
+        grid
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
@@ -106,6 +120,13 @@ impl<T> Grid<T> {
     //         .map( |i| self.data.iter_mut().skip(i).step_by_mut(self.width))
     // }
 
+    pub fn try_get(&self, p: Pt<usize>) -> Option<&T> {
+        match self.contains(p) {
+            true => Some(&self[p]),
+            false => None,
+        }
+    }
+
     pub fn to_string(&self, sep: Option<&str>) -> String
     where T: ToString
     {
@@ -118,6 +139,24 @@ impl<T> Grid<T> {
                 .collect::<Vec<_>>()
                 .join(sep)
             ).collect::<Vec<_>>().join("\n")
+    }
+}
+
+impl<T: Copy> Grid<T> {
+    pub fn flood_fill<'a>(&mut self, starts: impl Iterator<Item = &'a Pt<usize>>, cond: impl Fn(&Pt<usize>) -> bool, value: T) {
+        let mut to_visit: HashSet<Pt<usize>, RandomState> = HashSet::from_iter(starts.cloned());
+        let mut visited = HashSet::new();
+        while !to_visit.is_empty() {
+            let start = to_visit.iter().next().unwrap().clone();
+            to_visit.remove(&start);
+            self[start] = value;
+            visited.insert(start);
+            for neighbour in start.neighbours8() {
+                if self.contains(neighbour) && !visited.contains(&neighbour) && cond(&neighbour) {
+                    to_visit.insert(neighbour);
+                }
+            }
+        }
     }
 }
 
