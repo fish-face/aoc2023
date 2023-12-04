@@ -1,6 +1,6 @@
 use std::cmp::max;
 use std::iter;
-use pest_typed::{error::Error, ParsableTypedNode as _};
+use pest_typed::ParsableTypedNode as _;
 use pest_typed_derive::TypedParser;
 use num_enum::IntoPrimitive;
 
