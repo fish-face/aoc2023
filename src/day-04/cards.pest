@@ -1,0 +1,8 @@
+digit = { '0'..'9' }
+number = { digit+ }
+space = { " " }
+
+game_number = { number }
+have_number = { number }
+
+game = { "Card" ~ space+ ~ number ~ ":" ~ space+ ~ (game_number ~ space+)+ ~ "|" ~ space+ ~ (have_number ~ space*)+}
