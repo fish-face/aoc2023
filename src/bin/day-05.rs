@@ -1,17 +1,16 @@
-use std::cmp::{max, min};
+use std::cmp::{min};
 use itertools::{Itertools};
 use aoc2023::common::{read_input_lines, strs_to_nums};
 
 struct RangeMap {
-    // Ranges stored as (dst_start, src_start, len)
+    // Ranges stored as in the input (dst_start, src_start, len)
     storage: Vec<(usize, usize, usize)>,
     min_mapped: usize,
-    max_mapped: usize,
 }
 
 impl RangeMap {
     fn from_lines(lines: &mut impl Iterator<Item=String>) -> Self {
-        let mut result = Self{storage: vec![], max_mapped: 0, min_mapped: usize::MAX};
+        let mut result = Self{storage: vec![], min_mapped: usize::MAX};
         for line in lines.by_ref() {
             if line.is_empty() {
                 break;
@@ -19,7 +18,6 @@ impl RangeMap {
             if let Some(tuple) = strs_to_nums(line.split_ascii_whitespace()).collect_tuple() {
                 result.storage.push(tuple);
                 result.min_mapped = min(tuple.1, result.min_mapped);
-                result.max_mapped = max(tuple.1 + tuple.2 - 1, result.max_mapped);
             } else {
                 panic!("{} is malformed", line);
             }
@@ -28,21 +26,26 @@ impl RangeMap {
         result
     }
 
-    fn apply_to_ranges(&self, ranges: &Vec<(usize, usize)>) -> Vec<(usize, usize)> {
+    fn apply_to_range(&self, range: (usize, usize)) -> Vec<(usize, usize)> {
         let mut result = vec![];
-        for (start, len) in ranges.iter() {
-            let end = start + len - 1;
-            let (next_boundary, offset) = self.get_next_boundary(*start);
-            let next_boundary = next_boundary.unwrap_or(end);
-            if end <= next_boundary {
-                result.push(((*start as isize + offset) as usize, *len));
-            } else {
-                let next_len = next_boundary - start;
-                result.push(((*start as isize + offset) as usize, next_len));
-                result.append(&mut self.apply_to_ranges(&vec![(next_boundary, len - next_len)]));
-            }
+        let (start, len) = range;
+        let end = start + len - 1;
+        let (next_boundary, offset) = self.get_next_boundary(start);
+        let next_boundary = next_boundary.unwrap_or(end);
+
+        if end <= next_boundary {
+            result.push(((start as isize + offset) as usize, len));
+        } else {
+            let next_len = next_boundary - start;
+            result.push(((start as isize + offset) as usize, next_len));
+            result.append(&mut self.apply_to_range((next_boundary, len - next_len)));
         }
         result
+    }
+
+    fn apply_to_ranges<'a>(&self, ranges: impl Iterator<Item = (usize, usize)> + 'a) -> impl Iterator<Item = (usize, usize)> + 'a
+    {
+        ranges.map(|range| self.apply_to_range(range).into_iter()).flatten()
     }
 
     fn get_next_boundary(&self, input: usize) -> (Option<usize>, isize) {
@@ -116,13 +119,14 @@ fn main() {
     let seed_range_chunks = seeds
         .iter()
         .chunks(2);
-    let seed_ranges = seed_range_chunks
+    let seed_ranges: Box<dyn Iterator<Item=_>> = Box::new(seed_range_chunks
         .into_iter()
-        .map(|pair| pair.copied().collect_tuple::<(_, _)>().unwrap());
+        .map(|pair| pair.copied().collect_tuple::<(_, _)>().unwrap()));
 
-    let mut idx_ranges = seed_ranges.collect();
-    for map in maps.iter() {
-        idx_ranges = map.apply_to_ranges(&idx_ranges);
-    }
-    println!("{}", idx_ranges.iter().map(|(start, _)| start).min().unwrap());
+    let idx_ranges = maps.iter().fold(seed_ranges, |acc, map| Box::new(map.apply_to_ranges(acc)));
+    // let mut idx_ranges = seed_ranges;
+    // for map in maps.iter() {
+    //     idx_ranges = map.apply_to_ranges(idx_ranges);
+    // }
+    println!("{}", idx_ranges.map(|(start, _)| start).min().unwrap());
 }
