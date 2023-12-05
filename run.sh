@@ -2,7 +2,7 @@
 
 set -e
 
-IMAGE=fish-face/aoc2022:2
+IMAGE=fish-face/aoc2023:2
 
 docker image inspect "${IMAGE}" >/dev/null 2>&1 || docker build .docker -t "${IMAGE}"
 
