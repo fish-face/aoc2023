@@ -1,0 +1,13 @@
+version: 1
+author: Fish-Face
+language: Rust
+image: rust:1.74
+code: /code
+workdir: /code
+runonce: cargo build --release --bin "day-%zeroday%"
+cmd: target/release/day-%dayzero% inputs/day-%zeroday%
+persistence:
+  - /usr/local/cargo/registry
+daypath: src/bin/day-%zeroday%.rs
+inputfile: inputs/day-%zeroday%
+answerfile: answers/day-%zeroday%
