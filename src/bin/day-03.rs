@@ -57,7 +57,7 @@ fn fill_digits(start: &Pt<usize>, grid: &Grid<u8>) -> Span {
     span
 }
 
-fn connected_to<'a>(starts: impl Iterator<Item=&'a Pt<usize>>, grid: &Grid<u8>) -> HashMap<&'a Pt<usize>, Vec<Span>> {
+fn connected_to(starts: impl Iterator<Item=Pt<usize>>, grid: &Grid<u8>) -> HashMap<Pt<usize>, Vec<Span>> {
     let mut result = HashMap::new();
     for start in starts {
         let mut spans: Vec<Span> = Vec::new();
@@ -77,19 +77,19 @@ fn connected_to<'a>(starts: impl Iterator<Item=&'a Pt<usize>>, grid: &Grid<u8>) 
 fn main() {
     let data = read_input_lines().expect("Could not read input file");
     let grid = Grid::from_row_data(data.map(|line| line.into_bytes()));
-    let symbols: Vec<_> = grid.enumerate().filter_map(
+    let symbols = grid.enumerate().filter_map(
         |(p, c)| if is_symbol(*c as char) {
             Some(p)
         } else {
             None
         }
-    ).collect();
+    );
 
-    let symbols_to_spans = connected_to(symbols.iter(), &grid);
+    let symbols_to_spans = connected_to(symbols, &grid);
     println!("{}", symbols_to_spans.iter()
         // [span span...]
         .map(|(_, value)| value.iter()
-            // [pt pt ...] -> [value value value ...]
+            // [pt pt pt...] -> [value value value ...]
             .map(|span| span.map_from_grid(&grid).map(|c| *c as char)
                 // strings of digits
                 .collect::<String>()
@@ -103,10 +103,10 @@ fn main() {
         .sum::<u64>()
     );
 
-    let asterisks: Vec<_> = grid.enumerate().filter_map(
+    let asterisks = grid.enumerate().filter_map(
         |(p, c)| if *c as char == '*' { Some(p) } else { None }
-    ).collect();
-    let gears_to_spans = connected_to(asterisks.iter(), &grid);
+    );
+    let gears_to_spans = connected_to(asterisks, &grid);
     println!("{}", gears_to_spans.iter()
         .filter(|(_, value)| value.len() == 2)
         // as above

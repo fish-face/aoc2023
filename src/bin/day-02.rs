@@ -50,11 +50,11 @@ fn parse(line: &String) -> (usize, usize) {
 }
 
 fn main() {
-    let lines: Vec<String> = read_input_lines().expect("Could not read file").collect();
+    let lines = read_input_lines().expect("Could not read file");
 
-    let (part1, part2) = lines.iter().map(
-        |line| {
-            parse(line)
-        }).reduce(|(part1a, part2a), (part1b, part2b)| (part1a + part1b, part2a + part2b)).unwrap();
+    let (part1, part2) = lines
+        .map(|line| parse(&line))
+        .reduce(|(part1a, part2a), (part1b, part2b)| (part1a + part1b, part2a + part2b))
+        .unwrap();
     println!("{part1}\n{part2}");
 }
