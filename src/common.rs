@@ -2,6 +2,7 @@ use std::env;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
+use std::iter::Map;
 use std::str::FromStr;
 
 use anyhow::Result;
@@ -38,4 +39,12 @@ fn read_file_lines(path: String) -> Result<impl Iterator<Item = Result<String>>>
     // file.read_to_string(&mut content)?;
 
     // Ok(content.split('\n').map(|s| s.to_string()))
+}
+
+pub fn strs_to_nums<T>(strs: T) -> Map<<T as IntoIterator>::IntoIter, impl FnMut(T::Item) -> usize>
+where
+    T: IntoIterator,
+    T::Item: Into<String>,
+{
+    strs.into_iter().map(|s: T::Item| s.into().parse::<usize>().expect("Couldn't parse a number"))
 }
