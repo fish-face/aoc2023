@@ -1,7 +1,8 @@
 version: 1
 author: Fish-Face
 language: Rust
-image: rust:1.74-alpine
+dockerfile: .docker/Dockerfile
+#image: rust:1.74-alpine
 code: /code
 workdir: /code
 runonce: RUSTFLAGS='-C link-arg=-s' cargo build --target x86_64-unknown-linux-musl --release --bin "day-%zeroday%"
