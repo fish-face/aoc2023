@@ -1,13 +1,15 @@
 version: 1
 author: Fish-Face
 language: Rust
-image: rust:1.74
+image: rust:1.74-alpine
 code: /code
 workdir: /code
-runonce: cargo build --release --bin "day-%zeroday%"
+runonce: RUSTFLAGS='-C link-arg=-s' cargo build --target x86_64-unknown-linux-musl --release --bin "day-%zeroday%"
 cmd: target/release/day-%dayzero% inputs/day-%zeroday%
 persistence:
   - /usr/local/cargo/registry
 daypath: src/bin/day-%zeroday%.rs
 inputfile: inputs/day-%zeroday%
 answerfile: answers/day-%zeroday%
+common:
+  - .cargo/config.toml
