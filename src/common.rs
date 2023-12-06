@@ -41,10 +41,12 @@ fn read_file_lines(path: String) -> Result<impl Iterator<Item = Result<String>>>
     // Ok(content.split('\n').map(|s| s.to_string()))
 }
 
-pub fn strs_to_nums<T>(strs: T) -> Map<<T as IntoIterator>::IntoIter, impl FnMut(T::Item) -> usize>
+pub fn strs_to_nums<T, S>(strs: T) -> Map<<T as IntoIterator>::IntoIter, impl FnMut(T::Item) -> S>
 where
     T: IntoIterator,
     T::Item: Into<String>,
+    S: FromStr,
+    S::Err: Debug,
 {
-    strs.into_iter().map(|s: T::Item| s.into().parse::<usize>().expect("Couldn't parse a number"))
+    strs.into_iter().map(|s: T::Item| s.into().parse::<S>().expect("Couldn't parse "))
 }
