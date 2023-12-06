@@ -43,7 +43,7 @@ impl RangeMap {
         result
     }
 
-    fn apply_to_ranges<'a>(&self, ranges: impl Iterator<Item = (usize, usize)> + 'a) -> impl Iterator<Item = (usize, usize)> + 'a
+    fn apply_to_ranges<'a>(&'a self, ranges: impl Iterator<Item = (usize, usize)> + 'a) -> impl Iterator<Item = (usize, usize)> + 'a
     {
         ranges.map(|range| self.apply_to_range(range).into_iter()).flatten()
     }
