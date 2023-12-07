@@ -40,4 +40,5 @@ fn main() {
         .join("")
         .parse::<u64>()
         .unwrap();
+    println!("{}", n_winning_times(t2, d2));
 }
