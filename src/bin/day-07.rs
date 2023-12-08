@@ -19,8 +19,8 @@ enum Card {
 
 #[derive(Debug, PartialEq, Eq, Ord, Clone)]
 struct Play {
-    cards: Vec<Card>,
-    cards2: Vec<Card>,
+    cards1: [Card; 5],
+    cards2: [Card; 5],
     hand: Hand,
     hand2: Hand,
     bid: usize,
@@ -33,10 +33,14 @@ impl Play {
         let (counts, joker_count) = Self::counts(cards);
         let hand = Play::hand(counts);
         let hand2 = Play::hand2(counts, joker_count);
-        let cards2 = cards.bytes().map(Play::byte_to_card2).collect();
-        let cards = cards.bytes().map(Play::byte_to_card).collect();
+        let mut cards1 = [Card::Two; 5];
+        let mut cards2 = [Card::Two; 5];
+        for i in 0..5 {
+            cards1[i] = Self::byte_to_card(cards.as_bytes()[i]);
+            cards2[i] = Self::byte_to_card2(cards.as_bytes()[i]);
+        }
         let bid = bid.parse().unwrap();
-        Play{cards, cards2, hand, hand2, bid}
+        Play{ cards1, cards2, hand, hand2, bid}
     }
 
     #[inline]
@@ -189,7 +193,7 @@ impl Play {
 impl PartialOrd for Play {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match self.hand.partial_cmp(&other.hand) {
-            Some(Ordering::Equal) => self.cards.partial_cmp(&other.cards),
+            Some(Ordering::Equal) => self.cards1.partial_cmp(&other.cards1),
             ord => ord,
         }
     }
