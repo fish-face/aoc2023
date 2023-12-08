@@ -87,6 +87,7 @@ impl Play {
 
     #[inline]
     fn counts(cards: &str) -> ((u8, u8), u8) {
+        // Returns the largest two counts as a pair, and the count of jokers
         let mut counts = [0; 5];
 
         let bytes = &cards.as_bytes()[0..5];
