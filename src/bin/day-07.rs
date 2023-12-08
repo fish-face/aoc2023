@@ -198,7 +198,7 @@ impl Play {
 }
 
 fn main () {
-    for _ in 0..1000 {
+    for _ in 0..1 {
         let lines = read_input_lines().expect("Could not read input file");
 
         let mut plays = lines.map(Play::from_str).collect::<Vec<_>>();
