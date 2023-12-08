@@ -3,13 +3,7 @@ use aoc2023::common::read_input_lines;
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Ord, Clone, Copy)]
 enum Hand {
-    Nowt,
-    OnePair,
-    TwoPair,
-    Three,
-    FullHouse,
-    Four,
-    Five,
+    Nowt, OnePair, TwoPair, Three, FullHouse, Four, Five,
 }
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Ord, Clone, Copy)]
@@ -17,12 +11,20 @@ enum Card {
     LowJ, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, J, Q, K, A
 }
 
+// #[derive(Debug, PartialOrd, PartialEq, Eq, Ord, Clone, Copy)]
+// enum Combined {
+//     Hand(Hand),
+//     Card(Card),
+// }
+
 #[derive(Debug, PartialEq, Eq, Ord, Clone)]
 struct Play {
-    cards1: [Card; 5],
-    cards2: [Card; 5],
+    // cards1: [Card; 5],
+    // cards2: [Card; 5],
+    cards1: [u8; 6],
+    cards2: [u8; 6],
     hand: Hand,
-    hand2: Hand,
+    // hand2: Hand,
     bid: usize,
 }
 
@@ -33,56 +35,67 @@ impl Play {
         let (counts, joker_count) = Self::counts(cards);
         let hand = Play::hand(counts);
         let hand2 = Play::hand2(counts, joker_count);
-        let mut cards1 = [Card::Two; 5];
-        let mut cards2 = [Card::Two; 5];
-        for i in 0..5 {
-            cards1[i] = Self::byte_to_card(cards.as_bytes()[i]);
-            cards2[i] = Self::byte_to_card2(cards.as_bytes()[i]);
+        // let mut cards1 = [Card::Two; 5];
+        // let mut cards2 = [Card::Two; 5];
+        let mut cards1 = [0; 6];
+        let mut cards2 = [0; 6];
+        for i in 0..6 {
+            if i == 0 {
+                cards1[i] = hand as u8;
+                cards2[i] = hand2 as u8;
+            } else {
+                cards1[i] = Self::byte_to_card(cards.as_bytes()[i-1]) as u8;
+                cards2[i] = Self::byte_to_card2(cards.as_bytes()[i-1]) as u8;
+            }
         }
+        // for i in 0..5 {
+        //     cards1[i] = Self::byte_to_card(cards.as_bytes()[i]);
+            // cards2[i] = Self::byte_to_card2(cards.as_bytes()[i]);
+        // }
         let bid = bid.parse().unwrap();
-        Play{ cards1, cards2, hand, hand2, bid}
+        Play{ cards1, cards2, hand, bid}
     }
 
     #[inline]
-    fn byte_to_card(byte: u8) -> Card {
+    fn byte_to_card(byte: u8) -> u8 {
         let byte = byte as char;
-        match byte {
-            '2' => Card::Two,
-            '3' => Card::Three,
-            '4' => Card::Four,
-            '5' => Card::Five,
-            '6' => Card::Six,
-            '7' => Card::Seven,
-            '8' => Card::Eight,
-            '9' => Card::Nine,
-            'T' => Card::Ten,
-            'J' => Card::J,
-            'Q' => Card::Q,
-            'K' => Card::K,
-            'A' => Card::A,
+        (match byte {
+            '2' => 0,
+            '3' => 1,
+            '4' => 2,
+            '5' => 3,
+            '6' => 4,
+            '7' => 5,
+            '8' => 6,
+            '9' => 7,
+            'T' => 8,
+            'J' => 9,
+            'Q' => 10,
+            'K' => 11,
+            'A' => 12,
             _ => panic!("Invalid card {byte}")
-        }
+        }) as u8
     }
 
     #[inline]
-    fn byte_to_card2(byte: u8) -> Card {
+    fn byte_to_card2(byte: u8) -> u8 {
         let byte = byte as char;
-        match byte {
-            '2' => Card::Two,
-            '3' => Card::Three,
-            '4' => Card::Four,
-            '5' => Card::Five,
-            '6' => Card::Six,
-            '7' => Card::Seven,
-            '8' => Card::Eight,
-            '9' => Card::Nine,
-            'T' => Card::Ten,
-            'J' => Card::LowJ,
-            'Q' => Card::Q,
-            'K' => Card::K,
-            'A' => Card::A,
+        (match byte {
+            '2' => 1,
+            '3' => 2,
+            '4' => 3,
+            '5' => 4,
+            '6' => 5,
+            '7' => 6,
+            '8' => 7,
+            '9' => 8,
+            'T' => 9,
+            'J' => 0,
+            'Q' => 10,
+            'K' => 11,
+            'A' => 12,
             _ => panic!("Invalid card {byte}")
-        }
+        }) as u8
     }
 
     #[inline]
@@ -191,16 +204,18 @@ impl Play {
 }
 
 impl PartialOrd for Play {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self.hand.partial_cmp(&other.hand) {
-            Some(Ordering::Equal) => self.cards1.partial_cmp(&other.cards1),
-            ord => ord,
-        }
+        self.cards1.partial_cmp(&other.cards1)
+        // match self.hand.partial_cmp(&other.hand) {
+        //     Some(Ordering::Equal) => self.cards1.partial_cmp(&other.cards1),
+        //     ord => ord,
+        // }
     }
 }
 
 fn main () {
-    for _ in 0..1{
+    for _ in 0..1000 {
         let lines = read_input_lines().expect("Could not read input file");
 
         let mut plays = lines.map(Play::from_str).collect::<Vec<_>>();
@@ -211,10 +226,7 @@ fn main () {
             .map(|(i, play)| (i+1) * play.bid)
             .sum();
         println!("{}", part1);
-        plays.sort_by(|play1, play2| match play1.hand2.cmp(&play2.hand2) {
-            Ordering::Equal => play1.cards2.cmp(&play2.cards2),
-            ord => ord,
-        });
+        plays.sort_by(|play1, play2| play1.cards2.cmp(&play2.cards2));
         let part2: usize = plays
             .iter()
             .enumerate()
