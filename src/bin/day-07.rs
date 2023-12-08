@@ -1,4 +1,4 @@
-use std::cmp::{max, Ordering};
+use std::cmp::max;
 use aoc2023::common::read_input_lines;
 
 #[derive(Debug, Clone, Copy)]
@@ -188,13 +188,6 @@ impl Play {
             _ => panic!(),
         }) as u32
     }
-
-    fn part1_cmp(&self, other: &Self) -> Ordering {
-        self.cards1.cmp(&other.cards1)
-    }
-    fn part2_cmp(&self, other: &Self) -> Ordering {
-        self.cards2.cmp(&other.cards2)
-    }
 }
 
 fn main () {
@@ -202,14 +195,14 @@ fn main () {
         let lines = read_input_lines().expect("Could not read input file");
 
         let mut plays = lines.map(Play::from_str).collect::<Vec<_>>();
-        plays.sort_by(|play1, play2| play1.part1_cmp(&play2));
+        plays.sort_unstable_by_key(|play| play.cards1);
         let part1: usize = plays
             .iter()
             .enumerate()
             .map(|(i, play)| (i+1) * play.bid)
             .sum();
         println!("{}", part1);
-        plays.sort_by(|play1, play2| play1.part2_cmp(&play2));
+        plays.sort_unstable_by_key(|play| play.cards2);
         let part2: usize = plays
             .iter()
             .enumerate()
