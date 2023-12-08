@@ -1,30 +1,22 @@
 use std::cmp::{max, Ordering};
 use aoc2023::common::read_input_lines;
 
-#[derive(Debug, PartialOrd, PartialEq, Eq, Ord, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 enum Hand {
     Nowt, OnePair, TwoPair, Three, FullHouse, Four, Five,
 }
 
-#[derive(Debug, PartialOrd, PartialEq, Eq, Ord, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 enum Card {
     LowJ, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, J, Q, K, A
 }
 
-// #[derive(Debug, PartialOrd, PartialEq, Eq, Ord, Clone, Copy)]
-// enum Combined {
-//     Hand(Hand),
-//     Card(Card),
-// }
-
-#[derive(Debug, PartialEq, Eq, Ord, Clone)]
+#[derive(Debug, Clone)]
 struct Play {
-    // cards1: [Card; 5],
-    // cards2: [Card; 5],
-    cards1: [u8; 6],
-    cards2: [u8; 6],
-    hand: Hand,
-    // hand2: Hand,
+    // packing:
+    // [ 0 hand_type 0 card1 card2 card3 card4 card5 ]
+    cards1: u32,
+    cards2: u32,
     bid: usize,
 }
 
@@ -35,67 +27,61 @@ impl Play {
         let (counts, joker_count) = Self::counts(cards);
         let hand = Play::hand(counts);
         let hand2 = Play::hand2(counts, joker_count);
-        // let mut cards1 = [Card::Two; 5];
-        // let mut cards2 = [Card::Two; 5];
-        let mut cards1 = [0; 6];
-        let mut cards2 = [0; 6];
+        let mut cards1 = 0_u32;
+        let mut cards2 = 0_u32;
         for i in 0..6 {
             if i == 0 {
-                cards1[i] = hand as u8;
-                cards2[i] = hand2 as u8;
+                cards1 |= hand << 24;
+                cards2 |= hand2 << 24;
             } else {
-                cards1[i] = Self::byte_to_card(cards.as_bytes()[i-1]) as u8;
-                cards2[i] = Self::byte_to_card2(cards.as_bytes()[i-1]) as u8;
+                cards1 |= (Self::byte_to_card(cards.as_bytes()[i-1]) & 0x0f) << (5 - i) * 4;
+                cards2 |= (Self::byte_to_card2(cards.as_bytes()[i-1]) & 0x0f) << (5 - i) * 4;
             }
         }
-        // for i in 0..5 {
-        //     cards1[i] = Self::byte_to_card(cards.as_bytes()[i]);
-            // cards2[i] = Self::byte_to_card2(cards.as_bytes()[i]);
-        // }
         let bid = bid.parse().unwrap();
-        Play{ cards1, cards2, hand, bid}
+        Play{ cards1, cards2, bid}
     }
 
     #[inline]
-    fn byte_to_card(byte: u8) -> u8 {
+    fn byte_to_card(byte: u8) -> u32 {
         let byte = byte as char;
         (match byte {
-            '2' => 0,
-            '3' => 1,
-            '4' => 2,
-            '5' => 3,
-            '6' => 4,
-            '7' => 5,
-            '8' => 6,
-            '9' => 7,
-            'T' => 8,
-            'J' => 9,
-            'Q' => 10,
-            'K' => 11,
-            'A' => 12,
+            '2' => Card::Two,
+            '3' => Card::Three,
+            '4' => Card::Four,
+            '5' => Card::Five,
+            '6' => Card::Six,
+            '7' => Card::Seven,
+            '8' => Card::Eight,
+            '9' => Card::Nine,
+            'T' => Card::Ten,
+            'J' => Card::J,
+            'Q' => Card::Q,
+            'K' => Card::K,
+            'A' => Card::A,
             _ => panic!("Invalid card {byte}")
-        }) as u8
+        }) as u32
     }
 
     #[inline]
-    fn byte_to_card2(byte: u8) -> u8 {
+    fn byte_to_card2(byte: u8) -> u32 {
         let byte = byte as char;
         (match byte {
-            '2' => 1,
-            '3' => 2,
-            '4' => 3,
-            '5' => 4,
-            '6' => 5,
-            '7' => 6,
-            '8' => 7,
-            '9' => 8,
-            'T' => 9,
-            'J' => 0,
-            'Q' => 10,
-            'K' => 11,
-            'A' => 12,
+            '2' => Card::Two,
+            '3' => Card::Three,
+            '4' => Card::Four,
+            '5' => Card::Five,
+            '6' => Card::Six,
+            '7' => Card::Seven,
+            '8' => Card::Eight,
+            '9' => Card::Nine,
+            'T' => Card::Ten,
+            'J' => Card::LowJ,
+            'Q' => Card::Q,
+            'K' => Card::K,
+            'A' => Card::A,
             _ => panic!("Invalid card {byte}")
-        }) as u8
+        }) as u32
     }
 
     #[inline]
@@ -141,20 +127,20 @@ impl Play {
     }
 
     #[inline]
-    fn hand(counts: (u8, u8)) -> Hand {
-        match counts.0 {
+    fn hand(counts: (u8, u8)) -> u32 {
+        (match counts.0 {
             5 => Hand::Five,
             4 => Hand::Four,
             3 => if counts.1 == 2 { Hand::FullHouse } else { Hand::Three },
             2 => if counts.1 == 2 { Hand::TwoPair } else { Hand::OnePair },
             1 => Hand::Nowt,
             _ => panic!(),
-        }
+        }) as u32
     }
 
     #[inline]
-    fn hand2(counts: (u8, u8), joker_count: u8) -> Hand {
-        return match joker_count {
+    fn hand2(counts: (u8, u8), joker_count: u8) -> u32 {
+        (match joker_count {
             5 | 4 => Hand::Five,
             3 => match counts.1 {
                 // counts.0 is the three jokers
@@ -199,18 +185,14 @@ impl Play {
                 _ => panic!(),
             },
             _ => panic!(),
-        };
+        }) as u32
     }
-}
 
-impl PartialOrd for Play {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.cards1.partial_cmp(&other.cards1)
-        // match self.hand.partial_cmp(&other.hand) {
-        //     Some(Ordering::Equal) => self.cards1.partial_cmp(&other.cards1),
-        //     ord => ord,
-        // }
+    fn part1_cmp(&self, other: &Self) -> Ordering {
+        self.cards1.cmp(&other.cards1)
+    }
+    fn part2_cmp(&self, other: &Self) -> Ordering {
+        self.cards2.cmp(&other.cards2)
     }
 }
 
@@ -219,14 +201,14 @@ fn main () {
         let lines = read_input_lines().expect("Could not read input file");
 
         let mut plays = lines.map(Play::from_str).collect::<Vec<_>>();
-        plays.sort();
+        plays.sort_by(|play1, play2| play1.part1_cmp(&play2));
         let part1: usize = plays
             .iter()
             .enumerate()
             .map(|(i, play)| (i+1) * play.bid)
             .sum();
         println!("{}", part1);
-        plays.sort_by(|play1, play2| play1.cards2.cmp(&play2.cards2));
+        plays.sort_by(|play1, play2| play1.part2_cmp(&play2));
         let part2: usize = plays
             .iter()
             .enumerate()
