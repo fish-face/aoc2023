@@ -6,10 +6,10 @@ use modinverse::egcd;
 use aoc2023::common::read_input_lines;
 use num::integer::lcm;
 
-fn instr(c: char) -> usize {
+fn instr(c: char) -> bool {
     match c {
-        'L' => 0,
-        'R' => 1,
+        'L' => false,
+        'R' => true,
         _ => panic!("Bad instruction {c}"),
     }
 }
@@ -18,22 +18,29 @@ fn nodeline(s: &String) -> (&str, (&str, &str)) {
     (&s[0..3], (&s[7..10], &s[12..15]))
 }
 
-#[derive(Debug)]
-struct PathRecord {
-    node: usize,
-    start: usize,
-    // Apparently each start node gets into a loop containing a target node, disjoint from the other loops
-    // hit_target_at: Vec<usize>,
-    cycle_start: usize,
-    cycle_length: usize,
+fn follow_path(nodes: &Vec<(usize, usize)>, targets: &BitSet<u16>, instructions: &Vec<bool>, start: usize, is_part1: bool) -> usize {
+    let mut node = start;
+    for (i, instruction) in instructions.iter().cycle().enumerate() {
+        node = if *instruction {
+            nodes[node].1
+        } else {
+            nodes[node].0
+        };
+        if targets.contains(node) {
+            if is_part1 {
+                println!("{}", i + 1);
+            }
+            return i + 1;
+        }
+    }
+    0
 }
 
 fn main () {
     let mut lines = read_input_lines().expect("Could not read input file");
 
     let instructions = lines.next().unwrap();
-    let instructions = instructions.chars().map(instr);
-    let instr_count = instructions.clone().count();
+    let instructions = instructions.chars().map(instr).collect::<Vec<_>>();
 
     let nodes_lines = lines.skip(1).collect::<Vec<_>>();
     let nodes = nodes_lines.iter().map(nodeline);
@@ -54,63 +61,15 @@ fn main () {
     ));
     let mut paths = names_to_idx.iter().filter_map(
         |(name, idx)| match name.as_bytes()[2] as char {
-            'A' => Some(PathRecord{node: *idx, start: *idx, cycle_start: 0, cycle_length: 0}),
+            'A' => Some(*idx),
             _ => None,
         }
-    ).collect::<Vec<_>>();
+    );
 
-    for (i, instruction) in instructions.cycle().enumerate() {
-        for pathrecord in paths.iter_mut() {
-            if pathrecord.cycle_length > 0 {
-                continue;
-            }
-            pathrecord.node = match instruction {
-                0 => nodes[pathrecord.node].0,
-                1 => nodes[pathrecord.node].1,
-                _ => {panic!();},
-            };
-            // if targets.iter().any(|x| **x == pathrecord.node) {
-            if targets.contains(pathrecord.node) {
-                if pathrecord.cycle_start != 0 && pathrecord.cycle_length == 0 {
-                    pathrecord.cycle_length = i - pathrecord.cycle_start;
-                } else {
-                    pathrecord.cycle_start = i;
-                    if pathrecord.start == part1_start {
-                        // part1
-                        println!("{}", i+1);
-                    }
-                }
-            }
-        }
+    let so_called_cycle_lengths = paths.map(|p|
+        follow_path(&nodes, &targets, &instructions, p, p == part1_start)
+    );
 
-        // Doesn't seem to slow things down to check this every iteration
-        if paths.iter().all(|pr| pr.cycle_length > 0) {
-            // // Apply Chinese Remainder Theorem:
-            // // Solving x ≡ cycle_start mod cycle_length. The cycle lengths are not coprime but
-            // // we know there is a solution. To make use of the CRT we have to divide by the HCF at
-            // // each step
-            // let mut acc_offset = paths[0].cycle_start;
-            // let mut acc_cycle = paths[0].cycle_length;
-            // for pr in paths.iter().skip(1) {
-            //     let (h, a, b) = egcd(acc_cycle, pr.cycle_length);
-            //     // solve this pair of congruences to get:
-            //     // z ≡ a*l1*h1 + b*l2*h2 mod l1*l2
-            //
-            //     acc_offset = (a * acc_cycle * acc_offset + b * pr.cycle_length * pr.cycle_start)
-            //         .rem(acc_cycle * pr.cycle_length / h);
-            //     acc_cycle = acc_cycle * pr.cycle_length / h;
-            // }
-            // println!("{}", acc_cycle);
-            // WELP we can just take the LCM apparently - lol
-            let cycle_lengths = paths
-                .iter()
-                .map(|pr| pr.cycle_length);
-            // println!("{:?}", cycle_lengths.clone().collect::<Vec<_>>());
-            let lcm = cycle_lengths.clone().reduce(|a, b| lcm(a, b)).unwrap();
-            println!("{}", lcm);
-            // println!("{}", cycle_lengths.product::<usize>() / hcf);
-            break;
-        }
-
-    }
+    let lcm = so_called_cycle_lengths.clone().reduce(lcm).unwrap();
+    println!("{}", lcm);
 }
