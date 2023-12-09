@@ -29,14 +29,11 @@ impl Play {
         let hand2 = Play::hand2(counts, joker_count);
         let mut cards1 = 0_u32;
         let mut cards2 = 0_u32;
-        for i in 0..6 {
-            if i == 0 {
-                cards1 |= hand << 24;
-                cards2 |= hand2 << 24;
-            } else {
-                cards1 |= (Self::byte_to_card(cards.as_bytes()[i-1]) & 0x0f) << (5 - i) * 4;
-                cards2 |= (Self::byte_to_card2(cards.as_bytes()[i-1]) & 0x0f) << (5 - i) * 4;
-            }
+        cards1 |= hand << 24;
+        cards2 |= hand2 << 24;
+        for i in 0..5 {
+            cards1 |= Self::byte_to_card(cards.as_bytes()[i]) << (4 - i) * 4;
+            cards2 |= Self::byte_to_card2(cards.as_bytes()[i]) << (4 - i) * 4;
         }
         let bid = bid.parse().unwrap();
         Play{ cards1, cards2, bid}
@@ -191,7 +188,7 @@ impl Play {
 }
 
 fn main () {
-    for _ in 0..1 {
+    for _ in 0..1000 {
         let lines = read_input_lines().expect("Could not read input file");
 
         let mut plays = lines.map(Play::from_str).collect::<Vec<_>>();
