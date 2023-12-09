@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::Rem;
+use itertools::Itertools;
 use modinverse::egcd;
 use aoc2023::common::read_input_lines;
 
@@ -18,6 +19,7 @@ fn nodeline(s: &String) -> (&str, (&str, &str)) {
 #[derive(Debug)]
 struct PathRecord {
     node: usize,
+    start: usize,
     // Apparently each start node gets into a loop containing a target node, disjoint from the other loops
     // hit_target_at: Vec<usize>,
     cycle_start: usize,
@@ -41,27 +43,7 @@ fn main () {
         .map(|(_, (left, right))| (names_to_idx[left], names_to_idx[right]))
         .collect::<Vec<_>>();
 
-    let mut visited = HashSet::<(usize, usize)>::new();
-    let mut node = names_to_idx["AAA"];
-    for (i, instruction) in instructions.clone().cycle().enumerate() {
-        if visited.contains(&(i.rem(instr_count), node)) {
-            panic!("Infinite loop at {i}, {node}");
-        }
-        visited.insert((i, node));
-        if i > 1_000_000 {
-            panic!("Ran out at {i}");
-        }
-        node = match instruction {
-            0 => nodes[node].0,
-            1 => nodes[node].1,
-            _ => {panic!();},
-        };
-        if node == names_to_idx["ZZZ"] {
-            println!("{}", i+1);
-            break;
-        }
-    }
-
+    let part1_start = names_to_idx["AAA"];
     let targets = names_to_idx.iter().filter_map(
         |(name, idx)| match name.as_bytes()[2] as char {
             'Z' => Some(idx),
@@ -70,13 +52,16 @@ fn main () {
     ).collect::<Vec<_>>();
     let mut paths = names_to_idx.iter().filter_map(
         |(name, idx)| match name.as_bytes()[2] as char {
-            'A' => Some(PathRecord{node: *idx, cycle_start: 0, cycle_length: 0}),
+            'A' => Some(PathRecord{node: *idx, start: *idx, cycle_start: 0, cycle_length: 0}),
             _ => None,
         }
     ).collect::<Vec<_>>();
 
     for (i, instruction) in instructions.cycle().enumerate() {
         for pathrecord in paths.iter_mut() {
+            if pathrecord.cycle_length > 0 {
+                continue;
+            }
             pathrecord.node = match instruction {
                 0 => nodes[pathrecord.node].0,
                 1 => nodes[pathrecord.node].1,
@@ -87,6 +72,10 @@ fn main () {
                     pathrecord.cycle_length = i - pathrecord.cycle_start;
                 } else {
                     pathrecord.cycle_start = i;
+                    if pathrecord.start == part1_start {
+                        // part1
+                        println!("{}", i+1);
+                    }
                 }
             }
         }
