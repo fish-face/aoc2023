@@ -4,6 +4,7 @@ use bit_set::BitSet;
 use itertools::Itertools;
 use modinverse::egcd;
 use aoc2023::common::read_input_lines;
+use num::integer::lcm;
 
 fn instr(c: char) -> usize {
     match c {
@@ -105,7 +106,7 @@ fn main () {
                 .iter()
                 .map(|pr| pr.cycle_length);
             // println!("{:?}", cycle_lengths.clone().collect::<Vec<_>>());
-            let lcm = cycle_lengths.clone().reduce(|a, b| a * b / egcd(a, b).0).unwrap();
+            let lcm = cycle_lengths.clone().reduce(|a, b| lcm(a, b)).unwrap();
             println!("{}", lcm);
             // println!("{}", cycle_lengths.product::<usize>() / hcf);
             break;
