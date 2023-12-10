@@ -1,6 +1,8 @@
 use core::ops::Add;
 use std::fmt::{Display, Formatter};
 use std::ops::{Mul, Sub};
+use std::sync::TryLockError::Poisoned;
+use bit_set::BitSet;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Default, Debug)]
 pub struct Pt<T> (pub T, pub T);
@@ -38,13 +40,15 @@ impl<T: Mul<Output = T> + Add + Copy> Pt<T> {
 impl Pt<usize> {
     pub fn neighbours4(self) -> Vec<Self> {
         let Pt(x, y) = self;
-        let mut result = vec![Pt(x+1, y), Pt(x, y+1)];
+        let mut result = vec![];
         if x > 0 {
             result.push(Pt(x - 1, y));
         }
+        result.push(Pt(x+1, y));
         if y > 0 {
             result.push(Pt(x, y - 1));
         }
+        result.push(Pt(x+1, y));
         result
     }
 
@@ -124,3 +128,24 @@ impl From<Pt<usize>> for Pt<isize>
 //         todo!()
 //     }
 // }
+
+pub struct PointSet<T> {
+    width: T,
+    storage: BitSet,
+}
+
+impl<T> PointSet<T> {
+    pub fn new(width: T) -> Self {
+        PointSet{width, storage: BitSet::new()}
+    }
+}
+
+impl PointSet<usize> {
+    pub fn insert(&mut self, p: Pt<usize>) {
+        self.storage.insert(p.0 + p.1 * self.width);
+    }
+
+    pub fn contains(&self, p: Pt<usize>) -> bool {
+        self.storage.contains(p.0 + p.1 * self.width)
+    }
+}

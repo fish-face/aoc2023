@@ -70,6 +70,12 @@ impl<T> Grid<T> {
         x < self.width && y < self.height
     }
 
+    // WHO THE FUCK NEEDS FUNCTION OVERLOADING, RIGHT???
+    pub fn contains_isize(&self, p: Pt<isize>) -> bool {
+        let Pt(x, y) = p;
+        x >= 0 && y >= 0 && (x as usize) < self.width && (y as usize) < self.height
+    }
+
     pub fn rows(&self) -> impl Iterator<Item = &[T]> {
         self.data.as_slice().chunks_exact(self.width)
     }
