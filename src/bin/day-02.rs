@@ -22,18 +22,18 @@ const CONTENTS: [usize; 3] = [12, 13, 14];
 fn parse(line: &String) -> (usize, usize) {
     let mut mins = [0_usize, 0_usize, 0_usize];
 
-    let game = pairs::game::parse(line).unwrap();
-    let game_id = game.game_id().span.as_str().parse::<usize>().expect("Could not parse game ID");
-    let mut part1_contribution = game_id;
+    let (_, interesting) = line.split_once(' ').unwrap();
+    let (game_id, draws) = interesting.split_once(':').unwrap();
+    let mut part1_contribution  = game_id.parse::<usize>().expect("Could not parse game ID");
 
-    let (first_draw, following_draws) = game.draw();
-    let draws = iter::once(first_draw).chain(following_draws);
+    let draws = draws.split(';');
     for draw in draws {
-        let (first_part, following_parts) = draw.draw_part();
-        let parts = iter::once(first_part).chain(following_parts);
+        let parts = draw.split(',');
         for draw_part in parts {
-            let number = draw_part.number().span.as_str().parse::<usize>().expect("Could not parse number");
-            let colour = match draw_part.colour().span.as_str() {
+            let draw_part = &draw_part[1..];
+            let (number, colour) = draw_part.split_once(' ').unwrap();
+            let number = number.parse::<usize>().expect("Could not parse number");
+            let colour = match colour {
                 "red" => Colours::RED,
                 "green" => Colours::GREEN,
                 "blue" => Colours::BLUE,
