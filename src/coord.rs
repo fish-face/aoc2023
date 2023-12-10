@@ -1,7 +1,6 @@
 use core::ops::Add;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Mul, Sub};
-use std::sync::TryLockError::Poisoned;
 use bit_set::BitSet;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Default, Debug)]
@@ -147,5 +146,21 @@ impl PointSet<usize> {
 
     pub fn contains(&self, p: Pt<usize>) -> bool {
         self.storage.contains(p.0 + p.1 * self.width)
+    }
+}
+
+impl Debug for PointSet<usize>
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut pts = self.storage.iter();
+        f.write_str("[")?;
+        if let Some(z) = pts.next() {
+            f.write_fmt(format_args!("({}, {})", z % &self.width, z / &self.width))?;
+        }
+        for z in pts {
+            f.write_str(", ")?;
+            f.write_fmt(format_args!("({}, {})", z % &self.width, z / &self.width))?;
+        }
+        Ok(())
     }
 }

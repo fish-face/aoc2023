@@ -8,25 +8,26 @@ enum Dir {
     W, E, N, S,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum Elem {
-    S,
-    Pipe([Dir; 2]),
-    None
+#[inline]
+fn dirs(c: char) -> Option<[Dir; 2]> {
+    match c {
+        '-' => Some([Dir::E, Dir::W]),
+        '|' => Some([Dir::N, Dir::S]),
+        'F' => Some([Dir::S, Dir::E]),
+        'J' => Some([Dir::W, Dir::N]),
+        'L' => Some([Dir::N, Dir::E]),
+        '7' => Some([Dir::S, Dir::W]),
+        _ => None,
+    }
 }
 
 #[inline]
-fn dirs(c: u8) -> Elem {
-    let c = c as char;
-    match c {
-        '-' => Elem::Pipe([Dir::E, Dir::W]),
-        '|' => Elem::Pipe([Dir::N, Dir::S]),
-        'F' => Elem::Pipe([Dir::S, Dir::E]),
-        'J' => Elem::Pipe([Dir::W, Dir::N]),
-        'L' => Elem::Pipe([Dir::N, Dir::E]),
-        '7' => Elem::Pipe([Dir::S, Dir::W]),
-        'S' => Elem::S,
-        _ => Elem::None,
+fn matches_dir(c: char, d: Dir) -> bool {
+    match d {
+        Dir::W => c == '-' || c == 'J' || c == '7',
+        Dir::E => c == '-' || c == 'L' || c == 'F',
+        Dir::N => c == '|' || c == 'J' || c == 'L',
+        Dir::S => c == '|' || c == '7' || c == 'F',
     }
 }
 
@@ -50,8 +51,8 @@ fn go(p: Pt<usize>, d: Dir) -> Pt<usize> {
     }
 }
 
-fn walk(grid: &Grid<Elem>, pt: &mut Pt<usize>, from_dir: &mut Dir) {
-    if let Elem::Pipe(dirs) = &grid[*pt] {
+fn walk(grid: &Grid<char>, pt: &mut Pt<usize>, from_dir: &mut Dir) {
+    if let Some(dirs) = dirs(grid[*pt]) {
         let dir = dirs[0];
         if dir != *from_dir {
             *pt = go(*pt, dir);
@@ -68,17 +69,23 @@ fn walk(grid: &Grid<Elem>, pt: &mut Pt<usize>, from_dir: &mut Dir) {
     panic!("Couldn't find connection from {:?} which is {:?} which was not in dir {:?}", pt, grid[*pt], from_dir);
 }
 
-fn count_parity(grid: &Grid<Elem>, path: &PointSet<usize>) -> usize {
+fn count_parity(grid: &Grid<char>, path: &PointSet<usize>) -> usize {
     let mut acc = 0;
     for x in 0..grid.width {
         let mut cur = Pt(x, 0);
         let mut outside = true;
         while cur.1 < grid.height {
             if path.contains(cur) {
-                if let Elem::Pipe(dirs) = grid[cur] {
-                    if dirs.contains(&Dir::E) {
-                        outside = !outside;
-                    }
+                // count when we pass over a piece of the path. We are only travelling south,
+                // so passing over a '-' is definitely going from outside to inside or vice-versa.
+                // But if we go over a '|', nothing changes, and if we go over two west-facing
+                // corners we haven't passed *over* the path, same if we pass over two east-facing
+                // ones. We want to flip the parity if we pass over a pair of an east- and a west-
+                // connecting corner. But we get the same effect by checking just for east (or just
+                // for west) because a second east-connecting corner would flip us again, and we
+                // can't end up on something not part of the path without seeing another corner.
+                if matches_dir(grid[cur], Dir::E) {
+                    outside = !outside;
                 }
             } else if !outside {
                 acc += 1;
@@ -93,32 +100,24 @@ fn main () {
     let input = read_input_lines()
         .expect("Couldn't read input file")
         .map(|line| line
-            .into_bytes()
-            .into_iter()
-            .map(dirs)
+            .chars()
+            .collect::<Vec<_>>()
         )
         .collect::<Vec<_>>();
     let mut grid = Grid::from_row_data(input.into_iter());
     let start = grid
         .enumerate()
-        .find(|(_, e)| **e == Elem::S)
+        .find(|(_, e)| **e == 'S')
         .unwrap().0;
 
     let start_neighbours = start.neighbours4();
-    let foo = &mut zip(start_neighbours.iter(), [Dir::E, Dir::W, Dir::S, Dir::N])
+    // directions need to be in the same order the neighbours come out... cba doing anything better
+    let how_do_you_destructure_into_mut = &mut zip(start_neighbours.iter(), [Dir::E, Dir::W, Dir::S, Dir::N])
         .find(|(pt, from_dir)|
-                  if grid.contains(**pt) {
-                      if let Elem::Pipe(dirs) = grid[**pt] {
-                          dirs.contains(from_dir)
-                      } else {
-                          false
-                      }
-                  } else {
-                      false
-                  }
+            grid.contains(**pt) && matches_dir(grid[**pt], *from_dir)
         ).unwrap();
-    let mut cur = *foo.0;
-    let mut from_dir = foo.1;
+    let mut cur = *how_do_you_destructure_into_mut.0;
+    let mut from_dir = how_do_you_destructure_into_mut.1;
     let start_dir_a = flip(from_dir);
 
     let mut steps = 1;
@@ -131,7 +130,12 @@ fn main () {
     }
     let start_dir_b = from_dir;
 
-    grid[start] = Elem::Pipe([start_dir_a, start_dir_b]);
+    for c in "-|JFL7".chars() {
+        if matches_dir(c, start_dir_a) && matches_dir(c, start_dir_b) {
+            grid[start] = c;
+            break;
+        }
+    }
 
     println!("{}", steps / 2);
     println!("{}", count_parity(&grid, &path));
