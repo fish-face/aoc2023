@@ -46,6 +46,42 @@ impl<T> Grid<T> {
         grid
     }
 
+    pub fn map_from_lines(lines: impl Iterator<Item = String>, f: impl Fn(u8) -> T) -> Grid<T> {
+        let mut grid = Grid{height: 0, width: 0, data: Vec::new()};
+        for line in lines {
+            for elt in line.bytes().map(&f) {
+                grid.data.push(elt);
+                if grid.height == 0 {
+                    grid.width += 1;
+                }
+            }
+            grid.height += 1;
+        }
+        grid
+    }
+
+    pub fn map_from_lines_and_find(
+        lines: impl Iterator<Item = String>,
+        f: impl Fn(u8) -> T,
+        cond: impl Fn(&T) -> bool
+    ) -> (Grid<T>, Vec<Pt<usize>>) {
+        let mut grid = Grid{height: 0, width: 0, data: Vec::new()};
+        let mut found = vec![];
+        for (y, line) in lines.enumerate() {
+            for (x, elt) in line.bytes().map(&f).enumerate() {
+                if cond(&elt) {
+                    found.push(Pt(x, y));
+                }
+                grid.data.push(elt);
+                if grid.height == 0 {
+                    grid.width += 1;
+                }
+            }
+            grid.height += 1;
+        }
+        (grid, found)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.data.iter()
     }
