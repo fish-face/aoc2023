@@ -25,7 +25,7 @@ fn main() {
 
         let multiple = (galaxies - idx) * idx;
         part1 += (1 + skips * 2) * multiple;
-        part2 += (1 + skips * (1_000_000)) * multiple;
+        part2 += (1 + skips * 1_000_000) * multiple;
 
         idx += n;
         prev_x = x;
@@ -39,7 +39,7 @@ fn main() {
 
         let multiple = (galaxies - idx) * idx;
         part1 += (1 + skips * 2) * multiple;
-        part2 += (1 + skips * (1_000_000)) * multiple;
+        part2 += (1 + skips * 1_000_000) * multiple;
 
         idx += n;
         prev_y = y;
