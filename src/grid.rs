@@ -46,7 +46,7 @@ impl<T> Grid<T> {
         grid
     }
 
-    pub fn map_from_lines(lines: impl Iterator<Item = String>, f: impl Fn(u8) -> T) -> Grid<T> {
+    pub fn map_from_lines<'a>(lines: impl Iterator<Item = &'a str>, f: impl Fn(u8) -> T) -> Grid<T> {
         let mut grid = Grid{height: 0, width: 0, data: Vec::new()};
         for line in lines {
             for elt in line.bytes().map(&f) {
