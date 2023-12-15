@@ -14,3 +14,4 @@ inputfile: inputs/day-%zeroday%
 answerfile: answers/day-%zeroday%
 common:
   - .cargo/config.toml
+  - src/*.rs

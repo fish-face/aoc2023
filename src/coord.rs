@@ -130,7 +130,7 @@ impl From<Pt<usize>> for Pt<isize>
 
 pub struct PointSet<T> {
     width: T,
-    storage: BitSet,
+    pub storage: BitSet,
 }
 
 impl<T> PointSet<T> {
