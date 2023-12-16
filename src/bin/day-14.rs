@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::fmt::{Debug, Display, Formatter};
 use bitvec::prelude::*;
 use itertools::{Either, Itertools};
@@ -135,7 +136,7 @@ fn main() {
         shift(&mut rollinghams, &walls, DIRECTIONS[0]);
         println!("{}", weight(&rollinghams.storage, height));
 
-        let mut seen_to_iter = HashMap::<BitVec, usize>::new();
+        let mut seen_to_iter = FxHashMap::default();
         let mut iter_to_seen = vec![];
         for dir in &DIRECTIONS[1..] {
             shift(&mut rollinghams, &walls, *dir);
@@ -152,7 +153,6 @@ fn main() {
                     return;
                 },
                 None => {
-                    println!("{i}: {:?}", weight(&rollinghams.storage, height));
                     seen_to_iter.insert(rollinghams.storage.clone(), i);
                     iter_to_seen.push(rollinghams.storage.clone());
                 },
