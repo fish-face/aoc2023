@@ -1,9 +1,9 @@
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use bitvec::prelude::*;
 use itertools::{Either, Itertools};
-use aoc2023::common::{read_input};
-use aoc2023::coord::{Pt};
+use aoc2023::common::read_input;
+use aoc2023::coord::Pt;
 
 pub struct PointSet {
     width: usize,
@@ -12,26 +12,22 @@ pub struct PointSet {
 }
 
 impl PointSet {
-    pub fn new(width: usize, height: usize) -> Self {
+    fn new(width: usize, height: usize) -> Self {
         let mut storage = bitvec![];
         storage.resize(width * height, false);
         PointSet {width, height, storage}
     }
 
-    pub fn set(&mut self, p: Pt<usize>) {
-        self.storage.set(p.0 + p.1 * self.width, true);
+    fn set(&mut self, p: Pt<usize>, value: bool) {
+        self.storage.set(p.0 + p.1 * self.width, value);
     }
 
-    pub fn contains(&self, p: Pt<usize>) -> bool {
+    fn contains(&self, p: Pt<usize>) -> bool {
         self.storage[p.0 + p.1 * self.width]
     }
 
-    pub fn pt(&self, i: usize) -> Pt<usize> {
+    fn pt(&self, i: usize) -> Pt<usize> {
         Pt(i % self.width, i / self.width)
-    }
-
-    pub fn idx(&self, p: Pt<usize>) -> usize {
-        p.0 + p.1 * self.width
     }
 }
 
@@ -69,42 +65,53 @@ impl Debug for PointSet {
     }
 }
 
-fn shift(board: &mut PointSet, solid: &PointSet, by: Pt<isize>) -> bool {
-    let mut changed = false;
-    let mut next_board = bitvec![];
-    next_board.resize(board.storage.len(), false);
-
+fn shift(board: &mut PointSet, solid: &PointSet, by: Pt<isize>) {
+    let bugger_off_rust = board.storage.clone();
+    let ones = bugger_off_rust.iter_ones();
     let positions = match by {
-        Pt(1, 0) => Either::Left(board.storage.iter_ones().rev()),
-        Pt(-1, 0) => Either::Right(board.storage.iter_ones()),
-        Pt(0, 1) => Either::Left(board.storage.iter_ones().rev()),
-        Pt(0, -1) => Either::Right(board.storage.iter_ones()),
+        Pt(1, 0) => Either::Left(ones.rev()),
+        Pt(-1, 0) => Either::Right(ones),
+        Pt(0, 1) => Either::Left(ones.rev()),
+        Pt(0, -1) => Either::Right(ones),
         _ => panic!("can't handle shift direction {by}")
     };
 
     for p in positions {
-        let pp: Pt<isize> = board.pt(p).into();
-        let next = pp + by;
-        if next.0 >= 0 &&
+        let mut p = board.pt(p);
+        let pp: Pt<isize> = p.into();
+        let mut next = pp + by;
+        while next.0 >= 0 &&
             next.1 >= 0 &&
             next.0 < board.width as isize &&
             next.1 < board.height as isize &&
             !solid.contains(next.into()) &&
             !board.contains(next.into())
         {
-            next_board.set(board.idx(next.into()), true);
-            changed = true;
-        } else {
-            next_board.set(p, true);
+            board.set(p, false);
+            board.set(next.into(), true);
+            p = next.into();
+            let pp: Pt<isize> = p.into();
+            next = pp + by;
         }
     }
-    board.storage = next_board;
-    changed
 }
 
 fn weight(board: &BitVec, height: usize) -> usize {
     (height * board.count_ones()) -
         board.iter_ones().map(|idx| idx/height).sum::<usize>()
+}
+
+const DIRECTIONS: [Pt<isize>; 4] = [
+    Pt(0, -1),
+    Pt(-1, 0),
+    Pt(0, 1),
+    Pt(1, 0),
+];
+
+fn cycle(board: &mut PointSet, solid: &PointSet) {
+    for dir in DIRECTIONS {
+        shift(board, solid, dir);
+    }
 }
 
 fn main() {
@@ -118,35 +125,26 @@ fn main() {
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.as_bytes().iter().enumerate() {
                 match c {
-                    b'#' => walls.set(Pt(x, y)),
-                    b'O' => rollinghams.set(Pt(x, y)),
+                    b'#' => walls.set(Pt(x, y), true),
+                    b'O' => rollinghams.set(Pt(x, y), true),
                     _ => {},
                 };
             }
         }
 
-        let directions = [
-            Pt(0, -1),
-            Pt(-1, 0),
-            Pt(0, 1),
-            Pt(1, 0),
-        ];
-
-        while shift(&mut rollinghams, &walls, directions[0]) {};
+        shift(&mut rollinghams, &walls, DIRECTIONS[0]);
         println!("{}", weight(&rollinghams.storage, height));
 
         let mut seen_to_iter = HashMap::<BitVec, usize>::new();
         let mut iter_to_seen = vec![];
-        for dir in &directions[1..] {
-            while shift(&mut rollinghams, &walls, *dir) {};
+        for dir in &DIRECTIONS[1..] {
+            shift(&mut rollinghams, &walls, *dir);
         }
 
         const TARGET: usize = 1_000_000_000;
 
         for i in 1..10000 {
-            for dir in directions {
-                while shift(&mut rollinghams, &walls, dir) {};
-            }
+            cycle(&mut rollinghams, &walls);
             match seen_to_iter.get(&rollinghams.storage) {
                 Some(j) => {
                     let remainder = (TARGET - j) % (i-j);
