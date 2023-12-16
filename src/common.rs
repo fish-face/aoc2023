@@ -6,6 +6,7 @@ use std::iter::Map;
 use std::str::FromStr;
 
 use anyhow::Result;
+use itertools::Itertools;
 
 pub fn read_input_lines() -> Result<impl Iterator<Item = String>> {
     Ok(read_file_lines(env::args().nth(1).expect("No input supplied!"))?.filter_map(
@@ -20,6 +21,27 @@ pub fn read_input() -> Result<String> {
     file.read_to_string(&mut input)?;
     Ok(input)
 }
+
+pub fn read_input_bytes() -> impl Iterator<Item=u8> {
+    let path = env::args().nth(1).expect("No input supplied!");
+    let file = File::open(path).expect("Could not open file");
+    unsafe { BufReader::new(file).bytes().map(|r| r.unwrap_unchecked()) }
+}
+
+// pub fn read_input_byte_lines() -> impl Iterator<Item=impl Iterator<Item=u8>> {
+//     // let path = env::args().nth(1).expect("No input supplied!");
+//     // let file = File::open(path).expect("Could not open file");
+//     // let bytes = unsafe { BufReader::new(file)
+//     //     .bytes()
+//     //     .map(|r| r.unwrap_unchecked())
+//     // };
+//     read_input_bytes()
+//         .group_by(|b| *b == b'\n')
+//         .into_iter()
+//         .map(|(_, line)| line
+//             .filter(|b| *b != b'\n')
+//         )
+// }
 
 pub fn parse_input_lines<T>() -> Result<impl Iterator<Item = T>>
 where
