@@ -147,11 +147,12 @@ fn main() {
             cycle(&mut rollinghams, &walls);
             match seen_to_iter.get(&rollinghams.storage) {
                 Some(j) => {
-                    let remainder = (TARGET - j) % (i-j);
-                    println!("{}", weight(&iter_to_seen[j + remainder - 2], height));
+                    let remainder = (TARGET - j - 1) % (i-j);
+                    println!("{}", weight(&iter_to_seen[j + remainder - 1], height));
                     return;
                 },
                 None => {
+                    println!("{i}: {:?}", weight(&rollinghams.storage, height));
                     seen_to_iter.insert(rollinghams.storage.clone(), i);
                     iter_to_seen.push(rollinghams.storage.clone());
                 },
