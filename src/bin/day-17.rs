@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use itertools::Itertools;
+use rustc_hash::FxHashMap;
 use aoc2023::common::read_input_bytes;
 use aoc2023::coord::Pt;
 use aoc2023::grid::Grid;
@@ -22,7 +23,7 @@ impl Ord for CostedState {
     fn cmp(&self, other: &Self) -> Ordering {
         // flipped because Heap is a max-heap
         other.1.cmp(&self.1)
-            .then_with(|| other.0.gone_straight.cmp(&self.0.gone_straight))
+            .then_with(|| self.0.gone_straight.cmp(&other.0.gone_straight))
             .then_with(|| self.0.pos.0.cmp(&other.0.pos.0))
             .then_with(|| self.0.pos.1.cmp(&other.0.pos.1))
     }
@@ -38,16 +39,20 @@ fn search(map: &Grid<u8>, start: Pt<usize>, end: Pt<usize>, min_straight: usize,
     let start_state = State{pos: start, gone_straight: 0, straight_dir: Dir::E};
     let mut queue = BinaryHeap::<CostedState>::new();
     queue.push(CostedState(start_state, 0));
-    let mut best = HashMap::<State, usize>::new();
+    let mut best = FxHashMap::<State, usize>::default();
     best.insert(start_state, 0);
 
+    let mut explored = 0;
+
     while let Some(CostedState(state, cost)) = queue.pop() {
+        explored += 1;
         if state.pos == end {
+            println!("{explored}");
             return cost;
         }
 
-        if cost <= *best.get(&state).unwrap_or(&usize::MAX) {
-            best.insert(state, cost);
+        // if cost <= *best.get(&state).unwrap_or(&usize::MAX) {
+            // best.insert(state, cost);
             for dir in [Dir::N, Dir::E, Dir::S, Dir::W] {
                 if dir != state.straight_dir && state.gone_straight < min_straight {
                     continue;
@@ -81,12 +86,12 @@ fn search(map: &Grid<u8>, start: Pt<usize>, end: Pt<usize>, min_straight: usize,
                 let next_state = State{pos: next_pos, gone_straight: straight_dist, straight_dir: dir};
                 let next_cost = cost + map[next_pos] as usize;
 
-                if next_cost < *best.get(&next_state).unwrap_or(&usize::MAX) {
+                // if next_cost < *best.get(&next_state).unwrap_or(&usize::MAX) {
                     queue.push(CostedState(next_state, next_cost));
-                    best.insert(next_state, next_cost);
-                }
+                    // best.insert(next_state, next_cost);
+                // }
             }
-        }
+        // }
     }
     0
 }
