@@ -103,7 +103,8 @@ fn find_smudged_reflection(grid: Grid<u8>) -> (usize, usize) {
 fn main() {
     let bleh = read_input().unwrap();
     let inputs = bleh.split("\n\n");
-    let grids = inputs.map(|block| Grid::map_from_lines(block.lines(), |x| x));
+    let grids = inputs
+        .map(|block| Grid::map_from_lines(block.lines().map(|line| line.bytes()), |x| x));
 
     let both = grids.map(find_smudged_reflection).reduce(|a, b| (a.0 + b.0, a.1 + b.1)).unwrap();
     println!("{}\n{}", both.0, both.1);
