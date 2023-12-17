@@ -39,7 +39,6 @@ fn search(map: &Grid<u8>, start: Pt<usize>, end: Pt<usize>, min_straight: usize,
     let mut queue = BinaryHeap::<CostedState>::new();
     queue.push(CostedState(start_state, 0));
     let mut best = HashMap::<State, usize>::new();
-    let mut prev_map = HashMap::<State, State>::new();
     best.insert(start_state, 0);
 
     while let Some(CostedState(state, cost)) = queue.pop() {
@@ -85,7 +84,6 @@ fn search(map: &Grid<u8>, start: Pt<usize>, end: Pt<usize>, min_straight: usize,
                 if next_cost < *best.get(&next_state).unwrap_or(&usize::MAX) {
                     queue.push(CostedState(next_state, next_cost));
                     best.insert(next_state, next_cost);
-                    prev_map.insert(next_state, state);
                 }
             }
         }
