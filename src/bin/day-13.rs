@@ -9,16 +9,11 @@ fn possible_reflections(possible: &mut BitVec, row_or_col: &[u8], allow_smudge: 
         stack.push(*c);
         if possible[i] {
             // check that this possible reflection point is possible with this data
-            let mut test_stack = stack.clone();
-            let mut j = i + 1;
-            while let Some(test) = test_stack.pop() {
-                if j == row_or_col.len() {
-                    if smudge_allowed != 0 {
-                        possible.set(i, false);
-                    }
-                    break;
-                }
-                if test != row_or_col[j] {
+            let mut backward = i;
+            let mut forward = i + 1;
+            loop {
+                let test = stack[backward];
+                if test != row_or_col[forward] {
                     if smudge_allowed > 0 {
                         smudge_allowed -= 1;
                     } else {
@@ -26,7 +21,16 @@ fn possible_reflections(possible: &mut BitVec, row_or_col: &[u8], allow_smudge: 
                         break;
                     }
                 }
-                j += 1;
+                if backward > 0 && forward < row_or_col.len() - 1 {
+                    backward -= 1;
+                    forward += 1;
+                } else {
+                    break;
+                }
+            }
+
+            if smudge_allowed != 0 {
+                possible.set(i, false);
             }
         }
     }
