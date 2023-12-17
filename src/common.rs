@@ -6,7 +6,6 @@ use std::iter::Map;
 use std::str::FromStr;
 
 use anyhow::Result;
-use itertools::Itertools;
 
 pub fn read_input_lines() -> Result<impl Iterator<Item = String>> {
     Ok(read_file_lines(env::args().nth(1).expect("No input supplied!"))?.filter_map(
