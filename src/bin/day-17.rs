@@ -22,7 +22,7 @@ impl State {
 }
 
 #[derive(Clone, Eq, PartialEq)]
-struct CostedState(State, usize);
+struct CostedState(State, u16);
 
 impl Ord for CostedState {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -40,7 +40,7 @@ impl PartialOrd for CostedState {
     }
 }
 
-fn search(map: &Grid<u8>, start: Pt<usize>, end: Pt<usize>, min_straight: usize, max_straight: usize) -> usize {
+fn search(map: &Grid<u16>, start: Pt<usize>, end: Pt<usize>, min_straight: usize, max_straight: usize) -> u16 {
     let start_state = State { pos: start, gone_straight: 0, straight_dir: Dir::E };
     let mut queue = BinaryHeap::<CostedState>::new();
     queue.push(CostedState(start_state, 0));
@@ -83,9 +83,9 @@ fn search(map: &Grid<u8>, start: Pt<usize>, end: Pt<usize>, min_straight: usize,
             };
 
             let next_state = State { pos: next_pos, gone_straight: straight_dist, straight_dir: dir };
-            let next_cost = cost + map[next_pos] as usize;
+            let next_cost = cost + map[next_pos];
 
-            if next_cost < best[next_state.idx(map.width, map.height, max_straight)].unwrap_or(usize::MAX) {
+            if next_cost < best[next_state.idx(map.width, map.height, max_straight)].unwrap_or(u16::MAX) {
                 queue.push(CostedState(next_state, next_cost));
                 best[next_state.idx(map.width, map.height, max_straight)] = Some(next_cost);
             }
@@ -102,7 +102,7 @@ fn main() {
         .filter_map(|(newline, line)| if newline {
             None
         } else {
-            Some(line.filter(|b| *b != b'\n').map(|b| b - b'0'))
+            Some(line.filter(|b| *b != b'\n').map(|b| (b - b'0') as u16))
         });
     let grid = Grid::from_row_data(input);
 
