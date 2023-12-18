@@ -48,19 +48,26 @@ fn find_reflections(grid: &Vec<BitVec<usize, Lsb0>>, allow_smudge: bool) -> Opti
     None
 }
 
-fn find_smudged_reflection(horiz: Vec<BitVec>, vert: Vec<BitVec>) -> (usize, usize) {
+fn find_smudged_reflection(block: &str) -> (usize, usize) {
     // horizontal grid contains data in normal order so we can compare rows -> we use it to check vertical symmetry
 
-    let unsmudged_horiz = find_reflections(&vert, false);
-    let unsmudged_vert = find_reflections(&horiz, false);
-    let smudged_horiz = find_reflections(&vert, true);
-    let smudged_vert = find_reflections(&horiz, true);
+    let vert = vert_grid(block);
+    let mut horiz = None;
 
-    return (
-        unsmudged_horiz.unwrap_or_else(
-            || unsmudged_vert.unwrap() * 100),
-        smudged_horiz.unwrap_or_else(
-            || smudged_vert.unwrap() * 100));
+    let mut part1 = find_reflections(&vert, false);
+    if part1.is_none() {
+        horiz = Some(horiz_grid(block));
+        part1 = Some(find_reflections(&horiz.as_ref().unwrap(), false).unwrap() * 100);
+    }
+    let mut part2 = find_reflections(&vert, true);
+    if part2.is_none() {
+        if horiz.is_none() {
+            horiz = Some(horiz_grid(block));
+        }
+        part2 = Some(find_reflections(&horiz.unwrap(), true).unwrap() * 100);
+    }
+
+    return (part1.unwrap(), part2.unwrap());
 }
 
 fn horiz_grid(block: &str) -> Vec<BitVec> {
@@ -90,15 +97,14 @@ fn vert_grid(block: &str) -> Vec<BitVec> {
 }
 
 fn main() {
-    let bleh = read_input().unwrap();
-    let inputs = bleh.split("\n\n");
+    for _ in 0..1000 {
+        let bleh = read_input().unwrap();
+        let inputs = bleh.split("\n\n");
 
-    let grids = inputs
-        .map(|block| (horiz_grid(block), vert_grid(block)));
-
-    let both = grids
-        .map(|(h, v)| find_smudged_reflection(h, v))
-        .reduce(|a, b| (a.0 + b.0, a.1 + b.1))
-        .unwrap();
-    println!("{}\n{}", both.0, both.1);
+        let both = inputs
+            .map(|block| find_smudged_reflection(block))
+            .reduce(|a, b| (a.0 + b.0, a.1 + b.1))
+            .unwrap();
+        println!("{}\n{}", both.0, both.1);
+    }
 }
