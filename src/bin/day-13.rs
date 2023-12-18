@@ -1,115 +1,104 @@
+use std::iter::zip;
 use bitvec::prelude::*;
 use aoc2023::common::read_input;
-use aoc2023::grid::Grid;
 
-fn possible_reflections(possible: &mut BitVec, row_or_col: &[u8], allow_smudge: usize) {
-    let mut stack = vec![];
-    for (i, c) in row_or_col.iter().enumerate() {
+fn one_off(a: &BitVec, b: &BitVec) -> bool {
+    let mut off = 0;
+    for (aa, bb) in zip(a.iter(), b.iter()) {
+        if aa != bb {
+            off += 1;
+        }
+        if off > 1 {
+            return false;
+        }
+    }
+    true
+}
+
+fn find_reflections(grid: &Vec<BitVec<usize, Lsb0>>, allow_smudge: bool) -> Option<usize> {
+    let mut stack: Vec<&BitVec> = vec![];
+    for (i, line) in grid.iter().enumerate() {
         let mut smudge_allowed = allow_smudge;
-        stack.push(*c);
-        if possible[i] {
+        if i > 0 {
             // check that this possible reflection point is possible with this data
-            let mut backward = i;
-            let mut forward = i + 1;
+            let mut backward = i - 1;
+            let mut forward = i;
             loop {
                 let test = stack[backward];
-                if test != row_or_col[forward] {
-                    if smudge_allowed > 0 {
-                        smudge_allowed -= 1;
+                if *test != grid[forward] {
+                    if smudge_allowed && one_off(&test, &grid[forward]) {
+                        smudge_allowed = false;
                     } else {
-                        possible.set(i, false);
                         break;
                     }
                 }
-                if backward > 0 && forward < row_or_col.len() - 1 {
+                if backward > 0 && forward < grid.len() - 1 {
                     backward -= 1;
                     forward += 1;
                 } else {
+                    if !smudge_allowed {
+                        return Some(i);
+                    }
                     break;
                 }
             }
-
-            if smudge_allowed != 0 {
-                possible.set(i, false);
-            }
         }
+        stack.push(line);
     }
+    None
 }
 
-fn find_smudged_reflection(grid: Grid<u8>) -> (usize, usize) {
-    // first find unsmudged reflections
+fn find_smudged_reflection(horiz: Vec<BitVec>, vert: Vec<BitVec>) -> (usize, usize) {
+    // horizontal grid contains data in normal order so we can compare rows -> we use it to check vertical symmetry
 
-    // horizontal
-    let mut unsmudged_horiz = bitvec![usize, Lsb0;];
-    unsmudged_horiz.resize(grid.width-1, true);
-    unsmudged_horiz.push(false);
-    for row in grid.rows() {
-        possible_reflections(&mut unsmudged_horiz, row, 0);
-    }
+    let unsmudged_horiz = find_reflections(&vert, false);
+    let unsmudged_vert = find_reflections(&horiz, false);
+    let smudged_horiz = find_reflections(&vert, true);
+    let smudged_vert = find_reflections(&horiz, true);
 
-    // vertical
-    let mut unsmudged_vert = bitvec![usize, Lsb0;]; // true; grid.width];
-    let mut part1 = 0;
-    if unsmudged_horiz.count_ones() == 1 {
-        unsmudged_vert.resize(grid.height, false);
-        part1 = unsmudged_horiz.first_one().unwrap() + 1;
-    } else {
-        unsmudged_vert.resize(grid.height-1, true);
-        unsmudged_vert.push(false);
-        for col in grid.columns() {
-            possible_reflections(&mut unsmudged_vert, col.copied().collect::<Vec<_>>().as_slice(), 0);
-            if unsmudged_vert.count_ones() == 1 {
-                part1 = (unsmudged_vert.first_one().unwrap() + 1) * 100;
-                break;
-            }
-        }
-    }
-    // println!("done part1:\n{unsmudged_horiz}\n{unsmudged_vert}");
+    return (
+        unsmudged_horiz.unwrap_or_else(
+            || unsmudged_vert.unwrap() * 100),
+        smudged_horiz.unwrap_or_else(
+            || smudged_vert.unwrap() * 100));
+}
 
-    // now find smudged
-    
-    // horizontal
-    for smudge_idx in 0..grid.height {
-        let mut reflections = !unsmudged_horiz.clone();
-        reflections.set(grid.width-1, false);
-        for (y, row) in grid.rows().enumerate() {
-            if smudge_idx == 9 && y == 9 {
-                // println!("break");
-            }
-            // println!("horiz: {reflections}");
-            possible_reflections(&mut reflections, row, (y == smudge_idx) as usize);
+fn horiz_grid(block: &str) -> Vec<BitVec> {
+    let mut result = vec![];
+    for line in block.lines().map(|line| line.bytes()) {
+        let mut bits = bitvec![];
+        for b in line {
+            bits.push(b == b'#');
         }
-        // println!("-->    {reflections}");
-        if reflections.count_ones() == 1 {
-            // return reflections.first_one().unwrap() + 1;
-            return (part1, reflections.first_one().unwrap() + 1);
-        }
+        result.push(bits);
     }
+    result
+}
 
-    // vertical
-    for smudge_idx in 0..grid.width {
-        let mut reflections = !unsmudged_vert.clone();
-        reflections.set(grid.height-1, false);
-        for (x, col) in grid.columns().enumerate() {
-            possible_reflections(&mut reflections, col.copied().collect::<Vec<_>>().as_slice(), (x == smudge_idx) as usize);
-            // println!("vert: {reflections}");
+fn vert_grid(block: &str) -> Vec<BitVec> {
+    let mut result = vec![];
+    let mut lines = block.lines().map(|line| line.bytes()).collect::<Vec<_>>();
+    for _ in 0..lines[0].len() {
+        let mut bits = bitvec![];
+        for row in lines.iter_mut() {
+            let b = row.next().unwrap();
+            bits.push(b == b'#');
         }
-        if reflections.count_ones() == 1 {
-            return (part1, (reflections.first_one().unwrap() + 1) * 100);
-            // return (reflections.first_one().unwrap() + 1) * 100;
-        }
-        // println!("-->   {reflections}");
+        result.push(bits);
     }
-    // return 0;
-    panic!("Couldn't find reflection for {}", grid.map(|c| *c as char).to_string(Some("")))
+    result
 }
 
 fn main() {
     let bleh = read_input().unwrap();
     let inputs = bleh.split("\n\n");
-    let grids = inputs
-        .map(|block| Grid::map_from_lines(block.lines().map(|line| line.bytes()), |x| x));
 
-    let both = grids.map(find_smudged_reflection).reduce(|a, b| (a.0 + b.0, a.1 + b.1)).unwrap();
+    let grids = inputs
+        .map(|block| (horiz_grid(block), vert_grid(block)));
+
+    let both = grids
+        .map(|(h, v)| find_smudged_reflection(h, v))
+        .reduce(|a, b| (a.0 + b.0, a.1 + b.1))
+        .unwrap();
     println!("{}\n{}", both.0, both.1);
 }
