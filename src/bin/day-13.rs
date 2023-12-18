@@ -97,14 +97,12 @@ fn vert_grid(block: &str) -> Vec<BitVec> {
 }
 
 fn main() {
-    for _ in 0..1000 {
-        let bleh = read_input().unwrap();
-        let inputs = bleh.split("\n\n");
+    let bleh = read_input().unwrap();
+    let inputs = bleh.split("\n\n");
 
-        let both = inputs
-            .map(|block| find_smudged_reflection(block))
-            .reduce(|a, b| (a.0 + b.0, a.1 + b.1))
-            .unwrap();
-        println!("{}\n{}", both.0, both.1);
-    }
+    let both = inputs
+        .map(|block| find_smudged_reflection(block))
+        .reduce(|a, b| (a.0 + b.0, a.1 + b.1))
+        .unwrap();
+    println!("{}\n{}", both.0, both.1);
 }
