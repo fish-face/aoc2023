@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Mul, Sub};
 use bit_set::BitSet;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Default, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Default, Debug, PartialOrd, Ord)]
 pub struct Pt<T> (pub T, pub T);
 
 impl<T: Display> Display for Pt<T> {
@@ -47,7 +47,7 @@ impl Pt<usize> {
         if y > 0 {
             result.push(Pt(x, y - 1));
         }
-        result.push(Pt(x+1, y));
+        result.push(Pt(x, y + 1));
         result
     }
 
