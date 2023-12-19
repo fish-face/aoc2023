@@ -1,31 +1,23 @@
 use std::cmp::{max, min};
-use std::collections::{HashSet, VecDeque};
-use std::iter::once;
-use itertools::Itertools;
+use std::collections::{BTreeSet};
+use std::iter::{FilterMap, Map};
+use std::mem::transmute;
+use itertools::{Group, Groups, Itertools};
 use aoc2023::common::{read_input_bytes, read_input_lines};
 use aoc2023::coord::Pt;
-use aoc2023::grid::Grid;
 
+#[derive(PartialOrd, PartialEq, Eq, Ord, Copy, Clone)]
 enum Dir { N, E, S, W }
 
+#[derive(Copy, Clone)]
 struct Instruction {
     dir: Dir,
-    dist: usize,
-    colour: u32,
-}
-
-fn offset(dir: Dir) -> Pt<isize> {
-    match dir {
-        Dir::N => Pt( 0, -1),
-        Dir::E => Pt( 1,  0),
-        Dir::S => Pt( 0,  1),
-        Dir::W => Pt(-1,  0),
-    }
+    dist: isize,
 }
 
 impl Instruction {
-    fn from_bytes(mut bytes: impl Iterator<Item=u8>) -> Self {
-        let dir = match bytes.next().unwrap() {
+    fn from_bytes(mut bytes: impl Iterator<Item=u8>) -> (Self, Self) {
+        let dir1 = match bytes.next().unwrap() {
             b'U' => Dir::N,
             b'R' => Dir::E,
             b'D' => Dir::S,
@@ -34,43 +26,88 @@ impl Instruction {
         };
         bytes.nth(0);
         let dist_bytes = bytes.by_ref().take_while(|b| *b != b' ');
-        let mut dist = 0;
+        let mut dist1 = 0;
         for b in dist_bytes {
-            dist *= 10;
-            dist += (b - b'0') as usize;
+            dist1 *= 10;
+            dist1 += (b - b'0') as isize;
         }
         bytes.nth(1);
-        let colour_bytes = bytes.take(6).collect();
-        // let colour_bytes = [
-        //     bytes.next().unwrap(),
-        //     bytes.next().unwrap(),
-        //     bytes.next().unwrap(),
-        //     bytes.next().unwrap(),
-        //     bytes.next().unwrap(),
-        //     bytes.next().unwrap(),
-        // ];
         // todo this heap allocates making all the bytes and unsafeness pointless
-        let colour = unsafe { u32::from_str_radix(&String::from_utf8_unchecked(colour_bytes), 16).unwrap() };
-        // let colour = unsafe { String::from_utf8_unchecked(Vec::from(colour_bytes)) }.parse().unwrap();
+        let dist2_bytes = bytes.by_ref().take(5).collect();
+        let dist2 = unsafe { isize::from_str_radix(&String::from_utf8_unchecked(dist2_bytes), 16).unwrap() };
+        let dir2 = unsafe { transmute(bytes.next().unwrap() - b'0') };
 
-        Instruction{dir, dist, colour}
+        (Instruction{ dir: dir1, dist: dist1}, Instruction{dist: dist2, dir: dir2})
     }
 }
 
-fn flood_fill<T: Copy>(map: &mut Grid<T>, start: Pt<usize>, cond: impl Fn(T) -> bool, value: T) -> usize {
-    let mut to_visit: Vec<_> = vec![start];
-    let mut visited = HashSet::new();
-    visited.insert(start);
-    while let Some(start) = to_visit.pop() {
-        map[start] = value;
-        for neighbour in start.neighbours4() {
-            if map.contains(neighbour) && !visited.contains(&neighbour) && cond(map[neighbour]) {
-                visited.insert(neighbour);
-                to_visit.push(neighbour);
+fn area(instructions: impl Iterator<Item=Instruction>) -> usize {
+    let mut current = Pt(0_isize, 0_isize);
+    let mut x_crossings = BTreeSet::new();
+    let mut y_crossings = BTreeSet::new();
+
+    let mut perimeter = 0;
+
+    for instruction in instructions {
+        let next = match instruction.dir {
+            Dir::N => {
+                let next = Pt(current.0, current.1 - instruction.dist);
+                x_crossings.insert(current.0);
+                next
             }
-        }
+            Dir::S => {
+                let next = Pt(current.0, current.1 + instruction.dist);
+                x_crossings.insert(current.0);
+                next
+            }
+            Dir::E => {
+                let next = Pt(current.0 + instruction.dist, current.1);
+                y_crossings.insert((current.1, (current.0, next.0)));
+                next
+            }
+            Dir::W => {
+                let next = Pt(current.0 - instruction.dist, current.1);
+                y_crossings.insert((current.1, (next.0, current.0)));
+                next
+            }
+        };
+
+        current = next;
+        perimeter += instruction.dist;
     }
-    visited.len()
+
+    let mut xc_prev = x_crossings.pop_first().unwrap();
+    let mut yc_prev = isize::MAX;
+
+    let mut acc = 0;
+
+    for xc in x_crossings.iter() {
+        let width = xc - xc_prev;
+        let mut counting = false;
+        let mut height = 0;
+        for (yc, (xra, xrb)) in y_crossings.iter() {
+
+            if !(xc > xra && xc <= xrb) {
+                continue;
+            }
+
+            if *yc >= yc_prev {
+                height = *yc - yc_prev;
+            }
+
+            // println!("{xc},{yc} {width}x{height} left {}{xra}--{xrb} --> {counting}", if going_right { '+' } else { '-' });
+            if counting {
+                acc += width * (height + 0);
+            }
+            counting = !counting;
+
+            yc_prev = *yc;
+        }
+
+        xc_prev = *xc;
+    }
+
+    (acc + perimeter / 2 + 1).try_into().unwrap()
 }
 
 fn main() {
@@ -84,41 +121,9 @@ fn main() {
             Some(line)
         });
     let instructions = input
-        .map(Instruction::from_bytes);
+        .map(Instruction::from_bytes).collect::<Vec<_>>();
 
-    let (mut current, mut map) = if true {
-        (Pt(5000_usize, 5000_usize), Grid::new(10_000, 10_000))
-    } else {
-        (Pt(40_usize, 40_usize), Grid::new(80, 80))
-    };
-
-    let top_border_pt = current;
-    let (mut min_x, mut min_y, mut max_x, mut max_y) = (usize::MAX, usize::MAX, usize::MIN, usize::MIN);
-    let mut border_len = 0;
-    for instruction in instructions {
-        let offset = offset(instruction.dir);
-        for _ in 0..instruction.dist {
-            map[current] = Some(instruction.colour);
-            border_len += 1;
-            let icurrent: Pt<isize> = current.into();
-            current = (icurrent + offset).into();
-            min_x = min(min_x, current.0);
-            min_y = min(min_y, current.1);
-            max_x = max(max_x, current.0);
-            max_y = max(max_y, current.1);
-        }
-    }
-
-    current = top_border_pt;
-    // find interior point
-    while map[Pt(current.0, current.1 + 1)].is_some() {
-        current = Pt(current.0 + 1, current.1);
-    }
-    let interior = Pt(current.0, current.1 + 1);
-
-    // println!("{}", interior);
-    println!("{}", border_len + flood_fill(&mut map, interior, |colour| colour.is_none(), Some(0)));
-
-    // println!("{}", map.map(|x| if x.is_none() {'.'} else {'#'}).to_string(Some("")))
-    // println!("{} {} {} {}", min_x, min_y, max_x, max_y);
+    let part1 = area(instructions.iter().map(|(a, b)| *a));
+    let part2 = area(instructions.into_iter().map(|(a, b)| b));
+    println!("{part1}\n{part2}");
 }
