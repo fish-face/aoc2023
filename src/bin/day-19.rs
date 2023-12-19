@@ -1,5 +1,4 @@
 use std::cmp::{max, min};
-use std::collections::HashMap;
 use std::ops::{Index, IndexMut, Not};
 use array_macro::array;
 use aoc2023::common::read_input_lines;
@@ -10,9 +9,19 @@ enum Var { X, M, A, S }
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 enum Comp { LT, GT }
 
-type RuleIndex = String;
+type RuleIndex = usize;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+fn idx(s: &str) -> usize {
+    let s = s.as_bytes();
+    let mut result = 0;
+    for c in s.iter().take(3) {
+        result *= 26;
+        result += (*c - b'a') as usize;
+    }
+    result
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Target {
     Workflow(RuleIndex),
     Reject,
@@ -24,7 +33,7 @@ impl Target {
         match s.as_bytes()[0] {
             b'A' => Target::Accept,
             b'R' => Target::Reject,
-            _ => Target::Workflow(s.to_owned()),
+            _ => Target::Workflow(idx(s)),
         }
     }
 }
@@ -54,7 +63,7 @@ impl Rule {
         };
         let threshold = cond[2..].parse().expect("invalid u16");
         let target = Target::from_str(target);
-        Rule{var, comp, threshold, target}
+        Rule { var, comp, threshold, target }
     }
 }
 
@@ -62,12 +71,14 @@ impl Not for &Rule {
     type Output = Rule;
 
     fn not(self) -> Self::Output {
-        Rule{
+        // negate the rule
+        Rule {
             var: self.var,
-            comp: if self.comp == Comp::LT {Comp::GT} else {Comp::LT},
-            threshold: if self.comp == Comp::LT {self.threshold - 1} else {self.threshold + 1},
-            // TODO bleh
-            target: self.target.clone(),
+            comp: if self.comp == Comp::LT { Comp::GT } else { Comp::LT },
+            threshold: if self.comp == Comp::LT { self.threshold - 1 } else { self.threshold + 1 },
+            // bleh... it doesn't make sense to "negate" the target, but where we need this, we only
+            // care about the other bits anyway.
+            target: Target::Accept
         }
     }
 }
@@ -83,8 +94,7 @@ impl WorkFlow {
         for rule in self.rules.iter() {
             if rule.comp == Comp::LT && p[rule.var] < rule.threshold ||
                 rule.comp == Comp::GT && p[rule.var] > rule.threshold {
-                // TODO allocation
-                return rule.target.clone();
+                return rule.target;
             }
         }
         return self.default.clone();
@@ -101,6 +111,8 @@ impl Index<Var> for Part {
     }
 }
 
+// open intervals (.0, .1) --> the range 1 to 4000 inclusive is represented by (0, 4001)
+// 1 for each of the four variables
 type Restrictions = [(u16, u16); 4];
 
 impl Index<Var> for Restrictions {
@@ -117,54 +129,71 @@ impl IndexMut<Var> for Restrictions {
     }
 }
 
-fn valid(r: &Restrictions, rule: &Rule) -> bool {
-    let (low, high) = r[rule.var];
+// why can we implement (arbitrary) traits for a type alias but not arbitrary methods?!
+trait Restrictiony {
+    fn valid(&self, rule: &Rule) -> bool;
+    fn intersection(&self, rule: &Rule) -> Restrictions;
+    fn volume(&self) -> usize;
+}
 
-    if rule.comp == Comp::GT {
-        rule.threshold <= high
-    } else {
-        rule.threshold >= low
+impl Restrictiony for Restrictions {
+    fn valid(&self, rule: &Rule) -> bool {
+        let (low, high) = self[rule.var];
+
+        if rule.comp == Comp::GT {
+            rule.threshold <= high
+        } else {
+            rule.threshold >= low
+        }
     }
-}
 
-fn intersection(r: &Restrictions, rule: &Rule) -> Restrictions {
-    let mut result = r.clone();
-    if rule.comp == Comp::GT {
-        result[rule.var].0 = max(result[rule.var].0, rule.threshold);
-    } else {
-        result[rule.var].1 = min(result[rule.var].1, rule.threshold);
+    fn intersection(&self, rule: &Rule) -> Restrictions {
+        let mut result = self.clone();
+        if rule.comp == Comp::GT {
+            result[rule.var].0 = max(result[rule.var].0, rule.threshold);
+        } else {
+            result[rule.var].1 = min(result[rule.var].1, rule.threshold);
+        }
+        result
     }
-    result
+
+    fn volume(&self) -> usize {
+        // subtract 1 from each length because the intervals are open
+        self.iter().map(|(low, high)| (high - low - 1) as usize).product()
+    }
+
 }
 
-fn volume(r: &Restrictions) -> usize {
-    r.iter().map(|(low, high)| (high - low - 1) as usize).product()
-}
-
-fn count_accepted(workflows: &HashMap<RuleIndex, WorkFlow>, target: &Target, mut restrictions: Restrictions) -> usize {
+fn count_accepted(workflows: &[Option<WorkFlow>; 26 * 26 * 26], target: &Target, mut restrictions: Restrictions) -> usize {
+    // Recurse through the tree, keeping track of the restrictions we've acquired along the way.
+    // If we hit "accept" return the remaining possibilities (the volume of the hypercube of restrictions).
     if let Target::Workflow(idx) = target {
-        let workflow = &workflows[idx];
+        let workflow = workflows[*idx].as_ref().unwrap();
         let mut count = 0;
         for rule in workflow.rules.iter() {
-            if !valid(&restrictions, &rule) {
+            if !restrictions.valid(&rule) {
                 continue;
             }
-            count += count_accepted(workflows, &rule.target, intersection(&restrictions, rule));
-            restrictions = intersection(&restrictions, &!rule);
+            count += count_accepted(workflows, &rule.target, restrictions.intersection(rule));
+            // If a criterion is not met, we must add in the negation of that criterion to continue
+            restrictions = restrictions.intersection(&!rule);
         }
         count += count_accepted(workflows, &workflow.default, restrictions);
         count
     } else if *target == Target::Accept {
-        volume(&restrictions)
+        restrictions.volume()
     } else {
         0
     }
 }
 
 fn main() {
-    let mut workflows = HashMap::<RuleIndex, WorkFlow>::new();
+    const NO_WORKFLOW: Option<WorkFlow> = None;
+    let mut workflows = [NO_WORKFLOW; 26 * 26 * 26];
     let mut parts: Vec<Part> = vec![];
     let mut done_workflows = false;
+
+    // PARSE
     for line in read_input_lines().unwrap() {
         if !done_workflows {
             if line == "" {
@@ -176,8 +205,8 @@ fn main() {
             let mut rules = vec![];
             for rule_str in line.split(',') {
                 if rule_str.ends_with('}') {
-                    let default = Target::from_str(&rule_str[..rule_str.len()-1]);
-                    workflows.insert(index.to_owned(), WorkFlow { rules, default });
+                    let default = Target::from_str(&rule_str[..rule_str.len() - 1]);
+                    workflows[idx(index)] = Some(WorkFlow { rules, default });
                     break;
                 }
 
@@ -198,15 +227,16 @@ fn main() {
         }
     }
 
-    let start_index: RuleIndex = "in".to_owned();
+    // PART1
+    let start_index: RuleIndex = idx("in");
     let mut part1 = 0_usize;
 
     for part in parts.iter() {
-        let mut workflow = &workflows[&start_index];
+        let mut workflow = workflows[start_index].as_ref().unwrap();
         loop {
             let target = workflow.eval(part);
             if let Target::Workflow(idx) = target {
-                workflow = &workflows[&idx];
+                workflow = workflows[idx].as_ref().unwrap();
             } else if target == Target::Accept {
                 part1 += part.iter().map(|x| *x as usize).sum::<usize>();
                 break;
@@ -215,8 +245,9 @@ fn main() {
             }
         }
     }
-    println!("{}", part1);
 
+    // PART2
     let part2 = count_accepted(&workflows, &Target::Workflow(start_index), array![(0, 4001); 4]);
+    println!("{}", part1);
     println!("{}", part2);
 }
