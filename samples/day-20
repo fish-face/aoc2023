@@ -1,0 +1,7 @@
+broadcaster -> a
+%a -> inv, con
+&inv -> b
+// true -> inv must have been false
+%b -> con
+// false -> a and b must have been true
+&con -> output
