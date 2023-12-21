@@ -1,5 +1,5 @@
 use std::cmp::{max, min};
-use std::ops::{Index, IndexMut, Not};
+use std::ops::{BitAndAssign, Index, IndexMut, Not};
 use array_macro::array;
 use aoc2023::common::read_input_lines;
 
@@ -132,6 +132,7 @@ impl IndexMut<Var> for Restrictions {
 // why can we implement (arbitrary) traits for a type alias but not arbitrary methods?!
 trait Restrictiony {
     fn valid(&self, rule: &Rule) -> bool;
+    fn intersection_inplace(&mut self, rule: &Rule);
     fn intersection(&self, rule: &Rule) -> Restrictions;
     fn volume(&self) -> usize;
 }
@@ -144,6 +145,14 @@ impl Restrictiony for Restrictions {
             rule.threshold <= high
         } else {
             rule.threshold >= low
+        }
+    }
+
+    fn intersection_inplace(&mut self, rule: &Rule) {
+        if rule.comp == Comp::GT {
+            self[rule.var].0 = max(self[rule.var].0, rule.threshold);
+        } else {
+            self[rule.var].1 = min(self[rule.var].1, rule.threshold);
         }
     }
 
@@ -176,7 +185,7 @@ fn count_accepted(workflows: &[Option<WorkFlow>; 26 * 26 * 26], target: &Target,
             }
             count += count_accepted(workflows, &rule.target, restrictions.intersection(rule));
             // If a criterion is not met, we must add in the negation of that criterion to continue
-            restrictions = restrictions.intersection(&!rule);
+            restrictions.intersection_inplace(&!rule);
         }
         count += count_accepted(workflows, &workflow.default, restrictions);
         count
