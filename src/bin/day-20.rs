@@ -162,7 +162,7 @@ fn main() {
 
     // find input to "rx"
     let rx_input = &out_to_in[idx("rx")];
-    assert_eq!(rx_input.len(), 1);
+    debug_assert_eq!(rx_input.len(), 1);
     // find inputs to that. we assume these all go high periodically for one iteration and then go
     // low again, and that the length of this period is prime.
     let mut rx_input_inputs = HashMap::<Idx, Option<usize>>::from_iter(
@@ -178,8 +178,9 @@ fn main() {
     println!("{}", highs * lows);
 
     // find the periods for part2. assume they're all between 1000 and 6000 (mine were about 4000)
-    for i in 0..5000 {
-        part2(&mut modules, &mut pulses, 1000 + i, &mut rx_input_inputs);
+    let mut i = 1000;
+    loop {
+        part2(&mut modules, &mut pulses, i, &mut rx_input_inputs);
         if rx_input_inputs.values().all(|v| v.is_some()) {
             // magic off by one who cares why at this point tbh
             // since we're assuming all these inputs are periodic, the desired final input occurs at
@@ -187,5 +188,6 @@ fn main() {
             println!("{}", rx_input_inputs.values().map(|v| v.unwrap() + 1).product::<usize>());
             break;
         }
+        i += 1;
     }
 }
