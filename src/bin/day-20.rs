@@ -1,12 +1,19 @@
 use std::any::{Any};
+use std::array;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug};
+use array_macro::array;
 use aoc2023::common::read_input_lines;
 
-type Idx = String;
+type Idx = usize;
 
-fn idx(s: &str) -> String {
-    s.to_owned()
+fn idx(s: &str) -> Idx {
+    if s == "broadcaster" {
+        0
+    } else {
+        let s = s.as_bytes();
+        (s[0] - b'a' + 1) as usize * 27 + (s[1] - b'a' + 1) as usize
+    }
 }
 
 #[derive(Debug)]
@@ -17,7 +24,7 @@ struct Module {
 }
 
 impl Module {
-    fn parse(s: &str, out_to_in: &mut HashMap<Idx, Vec<Idx>>) -> (Idx, Self) {
+    fn parse(s: &str, out_to_in: &mut [Vec<Idx>]) -> (Idx, Self) {
         let (module, dests) = s.split_once(" -> ").unwrap();
         let (label, imp): (_, Box<dyn Moduley>) = match module.as_bytes()[0] {
             b'%' => (&module[1..], Box::new(FlipFlop{on: false})),
@@ -27,9 +34,7 @@ impl Module {
         let dests = dests.split(", ").map(
             |s| {
                 let id = idx(s);
-                let outs = out_to_in
-                    .entry(id.clone())
-                    .or_default();
+                let outs = &mut out_to_in[id];
                 outs.push(idx(label));
                 (id, outs.len() - 1)
             }
@@ -93,7 +98,7 @@ impl Moduley for Nand {
     }
 }
 
-fn part1(modules: &mut HashMap<Idx, Module>, pulses: &mut VecDeque<(Idx, usize, bool)>, highs: &mut i32, lows: &mut i32) {
+fn part1(modules: &mut [Option<Module>], pulses: &mut VecDeque<(Idx, usize, bool)>, highs: &mut i32, lows: &mut i32) {
     pulses.push_back((idx(&"broadcaster"), 0, false));
     while let Some((idx, input_idx, input)) = pulses.pop_front() {
         if input {
@@ -101,14 +106,14 @@ fn part1(modules: &mut HashMap<Idx, Module>, pulses: &mut VecDeque<(Idx, usize, 
         } else {
             *lows += 1;
         }
-        simulate(modules, pulses, &idx, input_idx, input);
+        simulate(modules, pulses, idx, input_idx, input);
     }
 }
 
-fn part2(modules: &mut HashMap<Idx, Module>, pulses: &mut VecDeque<(Idx, usize, bool)>, i: usize, goals: &mut HashMap::<Idx, Option<usize>>) {
+fn part2(modules: &mut [Option<Module>], pulses: &mut VecDeque<(Idx, usize, bool)>, i: usize, goals: &mut HashMap::<Idx, Option<usize>>) {
     pulses.push_back((idx(&"broadcaster"), 0, false));
     while let Some((idx, input_idx, input)) = pulses.pop_front() {
-        if let Some(output) = simulate(modules, pulses, &idx, input_idx, input) {
+        if let Some(output) = simulate(modules, pulses, idx, input_idx, input) {
             if output {
                 goals.entry(idx).and_modify(|period| {period.get_or_insert(i);});
             }
@@ -116,8 +121,8 @@ fn part2(modules: &mut HashMap<Idx, Module>, pulses: &mut VecDeque<(Idx, usize, 
     }
 }
 
-fn simulate(modules: &mut HashMap<Idx, Module>, pulses: &mut VecDeque<(Idx, usize, bool)>, idx: &Idx, input_idx: usize, input: bool) -> Option<bool> {
-    if let Some(module) = modules.get_mut(idx) {
+fn simulate(modules: &mut [Option<Module>], pulses: &mut VecDeque<(Idx, usize, bool)>, idx: Idx, input_idx: usize, input: bool) -> Option<bool> {
+    if let Some(module) = &mut modules[idx] {
         if let Some(result) = module.imp.eval(input_idx, input) {
             for (dest_idx, dest_input_idx) in module.dests.iter() {
                 pulses.push_back((dest_idx.clone(), *dest_input_idx, result));
@@ -129,27 +134,29 @@ fn simulate(modules: &mut HashMap<Idx, Module>, pulses: &mut VecDeque<(Idx, usiz
 }
 
 fn main() {
-    let mut modules = HashMap::<Idx, Module>::new();
-    let mut out_to_in = HashMap::<Idx, Vec<Idx>>::new();
+    let mut modules: [Option<Module>; 27*27] = array::from_fn(|_| None);
+    let mut out_to_in: [_; 27*27] = array::from_fn(|_| Vec::<Idx>::new());
     for line in read_input_lines().unwrap() {
         let (idx, module) = Module::parse(&line, &mut out_to_in);
-        modules.insert(idx, module);
+        modules[idx] = Some(module);
     }
 
     // set up the Nands' memories
-    for (idx, module) in modules.iter_mut() {
-        if let Some(imp) = module.imp.as_any_mut().downcast_mut::<Nand>() {
-            imp.memory.resize(out_to_in[idx].len(), false);
+    for (idx, module) in modules.iter_mut().enumerate() {
+        if let Some(module) = module {
+            if let Some(imp) = module.imp.as_any_mut().downcast_mut::<Nand>() {
+                imp.memory.resize(out_to_in[idx].len(), false);
+            }
         }
     }
 
     // find input to "rx"
-    let rx_input = &out_to_in[&idx("rx")];
+    let rx_input = &out_to_in[idx("rx")];
     assert_eq!(rx_input.len(), 1);
     // find inputs to that. we assume these all go high periodically for one iteration and then go
     // low again, and that the length of this period is prime.
     let mut rx_input_inputs = HashMap::<Idx, Option<usize>>::from_iter(
-        out_to_in[&rx_input[0]].iter().map(|idx| (idx.clone(), None))
+        out_to_in[rx_input[0]].iter().map(|idx| (idx.clone(), None))
     );
 
     let mut pulses = VecDeque::<(Idx, usize, bool)>::new();
