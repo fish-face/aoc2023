@@ -2,11 +2,11 @@ use std::any::{Any};
 use std::array;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug};
-use array_macro::array;
 use aoc2023::common::read_input_lines;
 
 type Idx = usize;
 
+#[inline]
 fn idx(s: &str) -> Idx {
     if s == "broadcaster" {
         0
@@ -24,6 +24,7 @@ struct Module {
 }
 
 impl Module {
+    #[inline]
     fn parse(s: &str, out_to_in: &mut [Vec<Idx>]) -> (Idx, Self) {
         let (module, dests) = s.split_once(" -> ").unwrap();
         let (label, imp): (_, Box<dyn Moduley>) = match module.as_bytes()[0] {
@@ -64,15 +65,18 @@ trait Moduley: Any + Debug {
 }
 
 impl Moduley for Broadcast {
+    #[inline]
     fn eval(&mut self, _: usize, input: bool) -> Option<bool> {
         Some(input)
     }
+    #[inline]
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self as &mut dyn Any
     }
 }
 
 impl Moduley for FlipFlop {
+    #[inline]
     fn eval(&mut self, _: usize, input: bool) -> Option<bool> {
         if input {
             None
@@ -82,22 +86,26 @@ impl Moduley for FlipFlop {
         }
     }
 
+    #[inline]
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self as &mut dyn Any
     }
 }
 
 impl Moduley for Nand {
+    #[inline]
     fn eval(&mut self, input_idx: usize, input: bool) -> Option<bool> {
         self.memory[input_idx] = input;
         Some(!self.memory.iter().all(|x| *x))
     }
 
+    #[inline]
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self as &mut dyn Any
     }
 }
 
+#[inline]
 fn part1(modules: &mut [Option<Module>], pulses: &mut VecDeque<(Idx, usize, bool)>, highs: &mut i32, lows: &mut i32) {
     pulses.push_back((idx(&"broadcaster"), 0, false));
     while let Some((idx, input_idx, input)) = pulses.pop_front() {
@@ -110,6 +118,7 @@ fn part1(modules: &mut [Option<Module>], pulses: &mut VecDeque<(Idx, usize, bool
     }
 }
 
+#[inline]
 fn part2(modules: &mut [Option<Module>], pulses: &mut VecDeque<(Idx, usize, bool)>, i: usize, goals: &mut HashMap::<Idx, Option<usize>>) {
     pulses.push_back((idx(&"broadcaster"), 0, false));
     while let Some((idx, input_idx, input)) = pulses.pop_front() {
@@ -121,6 +130,7 @@ fn part2(modules: &mut [Option<Module>], pulses: &mut VecDeque<(Idx, usize, bool
     }
 }
 
+#[inline]
 fn simulate(modules: &mut [Option<Module>], pulses: &mut VecDeque<(Idx, usize, bool)>, idx: Idx, input_idx: usize, input: bool) -> Option<bool> {
     if let Some(module) = &mut modules[idx] {
         if let Some(result) = module.imp.eval(input_idx, input) {
