@@ -86,8 +86,18 @@ impl<T> Grid<T> {
         self.data.iter()
     }
 
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.data.iter_mut()
+    }
+
     pub fn enumerate(&self) -> impl Iterator<Item = (Pt<usize>, &T)> {
         self.data.iter().enumerate().map(
+            |(i, x)| (Pt(i % self.width, i / self.width), x)
+        )
+    }
+
+    pub fn enumerate_mut(&mut self) -> impl Iterator<Item = (Pt<usize>, &mut T)> {
+        self.data.iter_mut().enumerate().map(
             |(i, x)| (Pt(i % self.width, i / self.width), x)
         )
     }

@@ -1,7 +1,8 @@
 use core::ops::Add;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Mul, Sub};
+use std::ops::{Div, Mul, Rem, Sub};
 use bit_set::BitSet;
+use crate::grid::Grid;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Default, Debug, PartialOrd, Ord)]
 pub struct Pt<T> (pub T, pub T);
@@ -133,19 +134,41 @@ pub struct PointSet<T> {
     pub storage: BitSet,
 }
 
-impl<T> PointSet<T> {
+impl<T> PointSet<T>
+where T: Rem<Output=T> + Copy + Div<Output=T>,
+{
     pub fn new(width: T) -> Self {
         PointSet{width, storage: BitSet::new()}
+    }
+    fn point(&self, idx: T) -> Pt<T> {
+        Pt(idx % self.width, idx / self.width)
+    }
+    pub fn width(&self) -> T {
+        self.width
     }
 }
 
 impl PointSet<usize> {
+    #[inline]
     pub fn insert(&mut self, p: Pt<usize>) {
         self.storage.insert(p.0 + p.1 * self.width);
     }
 
+    #[inline]
     pub fn contains(&self, p: Pt<usize>) -> bool {
         self.storage.contains(p.0 + p.1 * self.width)
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=Pt<usize>> + 'a {
+        self.storage.iter().map(|v| self.point(v))
+    }
+
+    pub fn as_grid(&self, height: usize) -> Grid<bool> {
+        let mut grid = Grid::new(self.width, height);
+        for p in self.iter() {
+            grid[p] = true;
+        }
+        grid
     }
 }
 
