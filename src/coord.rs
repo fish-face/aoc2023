@@ -7,6 +7,9 @@ use crate::grid::Grid;
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Default, Debug, PartialOrd, Ord)]
 pub struct Pt<T> (pub T, pub T);
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Dir { N, E, S, W }
+
 impl<T: Display> Display for Pt<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {})", self.0, self.1)
@@ -99,6 +102,15 @@ impl Pt<isize> {
             Pt(x + 1, y + 1),
         ]
     }
+
+    pub fn walk(&self, dir: Dir, dist: isize) -> Pt<isize> {
+        match dir {
+            Dir::N => Pt(self.0, self.1 - dist),
+            Dir::E => Pt(self.0 + dist, self.1),
+            Dir::S => Pt(self.0, self.1 + dist),
+            Dir::W => Pt(self.0 - dist, self.1),
+        }
+    }
 }
 
 // HAHAHA RUST
@@ -129,6 +141,7 @@ impl From<Pt<usize>> for Pt<isize>
 //     }
 // }
 
+#[derive(Clone, Eq, PartialEq)]
 pub struct PointSet<T> {
     width: T,
     pub storage: BitSet,
