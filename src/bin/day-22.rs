@@ -7,6 +7,7 @@ use aoc2023::common::{read_input_lines, strs_to_nums};
 
 #[derive(Debug, Clone)]
 struct Pt (usize, usize, usize);
+#[derive(Debug, Clone)]
 struct Brick (Pt, Pt);
 
 fn coord(p: &Pt) -> usize {
@@ -132,9 +133,19 @@ fn main() {
     }
 
     // STEP 1: drop blocks
-    // print_stack(&stack, height);
-    while drop(&mut stack, &mut bricks, height) {
-        // print_stack(&stack, height);
+    while drop(&mut stack, &mut bricks, height) {}
+
+    // relabel bricks in final height order
+    let mut bricks_sorted = bricks.clone();
+    bricks_sorted.sort_unstable_by(
+        |a, b| min(a.0.2, a.1.2).cmp(min(&b.0.2, &b.1.2))
+    );
+
+    let mut stack = vec![0; 10 * 10 * 300];
+    for (brick_idx, brick) in bricks_sorted.iter().enumerate() {
+        for p in brick_pts(&brick) {
+            stack[coord(&p)] = brick_idx + 1;
+        }
     }
     // print_stack(&stack, height);
 
@@ -145,7 +156,7 @@ fn main() {
     // brick --> bricks it's supported by
     let mut supported_by = vec![BitSet::new(); bricks.len() + 1];
 
-    for (brick_idx, brick) in bricks.iter().enumerate() {
+    for (brick_idx, brick) in bricks_sorted.iter().enumerate() {
         for Pt(x, y, z) in brick_pts(brick) {
             let below_p = Pt(x, y, z - 1);
             // are we on the floor, or is the space below not-empty and not-me?
