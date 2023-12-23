@@ -23,7 +23,7 @@ impl Tile {
     }
 }
 
-fn dfs(map: &Grid<Tile>, pos: Pt<isize>, target: Pt<isize>, mut hist: PointSet<usize>, dist: usize) -> usize {
+fn part1(map: &Grid<Tile>, pos: Pt<isize>, target: Pt<isize>, mut hist: PointSet<usize>, dist: usize) -> usize {
     if hist.contains(pos.into()) {
         return 0
     }
@@ -40,14 +40,14 @@ fn dfs(map: &Grid<Tile>, pos: Pt<isize>, target: Pt<isize>, mut hist: PointSet<u
 
         match map[next.into()] {
             Tile::Wall => { None }
-            Tile::Floor | Tile::Ice(_) => { Some(dfs(&map, next, target, hist.clone(), dist+1)) }
-            // Tile::Ice(next_dir) => {
-            //     if *dir == next_dir {
-            //         Some(dfs(&map, next, target,  hist.clone(), dist+1))
-            //     } else {
-            //         None
-            //     }
-            // }
+            Tile::Floor => { Some(part1(&map, next, target, hist.clone(), dist+1)) }
+            Tile::Ice(next_dir) => {
+                if *dir == next_dir {
+                    Some(part1(&map, next, target,  hist.clone(), dist+1))
+                } else {
+                    None
+                }
+            }
         }
     }).max().unwrap_or(0)
 }
@@ -71,9 +71,9 @@ fn contract(
     map_to_graph: &mut Grid<Option<(usize, usize)>>,
 ) {
     if let Some((node, d_dist)) = map_to_graph[pos] {
-        println!("arrived at {pos} from {from} and it belongs to {node}");
+        // println!("arrived at {pos} from {from} and it belongs to {node}");
         if node == from {
-            println!("    cycle");
+            // println!("    cycle");
             return;
         }
         update_connection(pos, from, d_dist +dist+1, graph, node);
@@ -128,7 +128,7 @@ fn update_connection(pos: Pt<usize>, from: usize, dist: usize, graph: &mut Graph
         .iter_mut()
         .find(|edge| edge.to == from)
     {
-        println!("    updating existing weight {} to {}", existing_edge.weight, dist + 1);
+        // println!("    updating existing weight {} to {}", existing_edge.weight, dist + 1);
         existing_edge.weight = max(existing_edge.weight, dist + 1);
         graph[from]
             .iter_mut()
@@ -136,7 +136,7 @@ fn update_connection(pos: Pt<usize>, from: usize, dist: usize, graph: &mut Graph
             .unwrap()
             .weight = max(existing_edge.weight, dist + 1);
     } else {
-        println!("    adding edge with weight {}", dist + 1);
+        // println!("    adding edge with weight {}", dist + 1);
         // although we have visited this position already, we haven't drawn a connection to
         // the "from" node
         graph[next_node].push(Edge { weight: dist + 1, pos, to: from });
@@ -144,7 +144,7 @@ fn update_connection(pos: Pt<usize>, from: usize, dist: usize, graph: &mut Graph
     }
 }
 
-fn dfs2(graph: &Graph, cur: usize, target: usize, mut hist: BitSet, dist: usize) -> usize {
+fn longest_path(graph: &Graph, cur: usize, target: usize, mut hist: BitSet, dist: usize) -> usize {
     if hist.contains(cur) {
         return 0
     }
@@ -154,7 +154,7 @@ fn dfs2(graph: &Graph, cur: usize, target: usize, mut hist: BitSet, dist: usize)
     }
 
     graph[cur].iter().map(|edge| {
-        dfs2(graph, edge.to, target, hist.clone(), dist + edge.weight)
+        longest_path(graph, edge.to, target, hist.clone(), dist + edge.weight)
     }).max().unwrap_or(0)
 }
 
@@ -164,16 +164,20 @@ fn main() {
     let map = Grid::map_from_lines(
         input.map(|line| line.as_bytes().to_owned()), Tile::parse
     );
+
     let start = Pt(1, 0);
     let target = Pt(map.width - 2, map.height - 1);
+    let hist = PointSet::new(map.width);
+
+    println!("{}", part1(&map, start, target.into(), hist, 0));
+
     let mut graph = vec![];
     graph.push(vec![]);
     let mut map_to_graph = Grid::new(map.width, map.height);
-    map_to_graph[start] = Some((0, 0));
+    map_to_graph[start.into()] = Some((0, 0));
     contract(&map, Pt(1, 1), 0, 1, &mut graph, &mut map_to_graph);
-    // let hist = PointSet::new(map.width);
-    // println!("{}", dfs(&map, start, target.into(), hist, 0))
     let hist = BitSet::new();
     // println!("{:#?}", graph);
-    println!("{}", dfs2(&graph, 0, graph.len() - 1, hist, 0) - 1);
+
+    println!("{}", longest_path(&graph, 0, graph.len() - 1, hist, 0) - 1);
 }
