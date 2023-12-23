@@ -87,11 +87,13 @@ fn drop(stack: &mut Vec<usize>, bricks: &mut Vec<Brick>, height: usize) -> bool 
 
 // static mut iters: usize = 0;
 
-fn count_falling(brick_idx: usize, supports: &mut Vec<BitSet>, supported_by: &mut Vec<BitSet>) -> usize {
+fn count_falling(brick_idx: usize, supports: &mut Vec<BitSet>, mut num_supports: Vec<usize>) -> usize {
     let mut visited = BitSet::with_capacity(1400);
     let mut queue = VecDeque::with_capacity(1400);
-    let mut falling = BitSet::new();
-    falling.insert(brick_idx);
+    // let mut falling = BitSet::new();
+    // falling.insert(brick_idx);
+    let mut falling = 0;
+
     queue.push_back(brick_idx);
 
     while let Some(current) = queue.pop_front() {
@@ -101,13 +103,16 @@ fn count_falling(brick_idx: usize, supports: &mut Vec<BitSet>, supported_by: &mu
         // unsafe { iters += 1 };
         visited.insert(current);
         for next_brick_idx in supports[current].iter() {
-            if supported_by[next_brick_idx].len() > 0 && supported_by[next_brick_idx].difference(&falling).count() == 0 {
-                falling.insert(next_brick_idx);
+            num_supports[next_brick_idx] -= 1;
+            if num_supports[next_brick_idx] == 0 {
+                // falling.insert(next_brick_idx);
+                falling += 1;
                 queue.push_back(next_brick_idx);
             }
         }
     }
-    falling.len() - 1
+    // falling.len() - 1
+    falling
 }
 
 fn main() {
@@ -170,9 +175,11 @@ fn main() {
         }
     }
 
+    let num_supports = supported_by.iter().map(|bs| bs.len()).collect::<Vec<_>>();
+
     // STEP 3: traverse graph
     let falling = (1..bricks.len() + 1)
-        .map(|i| count_falling(i, &mut supports, &mut supported_by))
+        .map(|i| count_falling(i, &mut supports, num_supports.clone()))
         .collect::<Vec<_>>();
 
     // unsafe { println!("{iters} iters"); }
