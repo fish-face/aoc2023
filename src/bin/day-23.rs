@@ -55,7 +55,6 @@ fn part1(map: &Grid<Tile>, pos: Pt<isize>, target: Pt<isize>, mut hist: PointSet
 #[derive(Clone, Debug)]
 struct Edge {
     weight: usize,
-    pos: Pt<usize>,
     to: usize,
 }
 
@@ -76,7 +75,7 @@ fn contract(
             // println!("    cycle");
             return;
         }
-        update_connection(pos, from, d_dist +dist+1, graph, node);
+        update_connection(from, d_dist +dist+1, graph, node);
         return;
     } else {
         map_to_graph[pos] = Some((from, dist));
@@ -97,8 +96,8 @@ fn contract(
         // the only dead ends are the start and end and we make sure we don't go back to the start
         // so this is the end
         let node = graph.len();
-        graph[from].push(Edge{weight: dist+1, pos, to: node});
-        graph.push(vec![Edge{weight: dist+1, pos, to: from }]);
+        graph[from].push(Edge{weight: dist+1, to: node});
+        graph.push(vec![Edge{weight: dist+1, to: from }]);
     } else if neighbours.len() == 2 {
         // part of previous corridor
 
@@ -114,8 +113,8 @@ fn contract(
         // junction
 
         let node = graph.len();
-        graph.push(vec![Edge{weight: dist+1, pos, to: from }]);
-        graph[from].push(Edge{weight: dist+1, pos, to: node});
+        graph.push(vec![Edge{weight: dist+1, to: from }]);
+        graph[from].push(Edge{weight: dist+1, to: node});
 
         for neighbour in neighbours.iter() {
             contract(map, **neighbour, node, 0, graph, map_to_graph)
@@ -123,7 +122,7 @@ fn contract(
     }
 }
 
-fn update_connection(pos: Pt<usize>, from: usize, dist: usize, graph: &mut Graph, next_node: usize) {
+fn update_connection(from: usize, dist: usize, graph: &mut Graph, next_node: usize) {
     if let Some(existing_edge) = graph[next_node]
         .iter_mut()
         .find(|edge| edge.to == from)
@@ -139,8 +138,8 @@ fn update_connection(pos: Pt<usize>, from: usize, dist: usize, graph: &mut Graph
         // println!("    adding edge with weight {}", dist + 1);
         // although we have visited this position already, we haven't drawn a connection to
         // the "from" node
-        graph[next_node].push(Edge { weight: dist + 1, pos, to: from });
-        graph[from].push(Edge { weight: dist + 1, pos, to: next_node });
+        graph[next_node].push(Edge { weight: dist + 1, to: from });
+        graph[from].push(Edge { weight: dist + 1, to: next_node });
     }
 }
 
