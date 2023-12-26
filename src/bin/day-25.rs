@@ -5,6 +5,7 @@ use bitvec::prelude::BitVec;
 use itertools::{Itertools};
 use aoc2023::common::read_input_lines;
 use rand::{Rng};
+use rand::distributions::{WeightedIndex, Distribution};
 
 #[inline]
 fn idx(s: &str) -> u16 {
@@ -47,6 +48,7 @@ struct Graph {
     nodes: Vec<u16>,
     nodes_exist: BitVec,
     adj: Vec<Vec<u16>>,
+    edge_counts: Vec<u16>,
 }
 
 impl Index<(u16, u16)> for Graph {
@@ -82,6 +84,7 @@ fn add_node(graph: &mut Graph, node: u16) -> u16 {
             edges.push(0)
         }
         graph.nodes_exist.set(node as usize, true);
+        graph.edge_counts.push(0);
         new
     } else {
         graph.idx_to_pos[node as usize]
@@ -97,6 +100,8 @@ fn create_edge(graph: &mut Graph, src: u16, dest: u16) {
 fn add_edges(graph: &mut Graph, src: u16, dest: u16, count: u16) {
     graph[(src, dest)] += count;
     graph[(dest, src)] += count;
+    graph.edge_counts[src as usize] += count;
+    graph.edge_counts[dest as usize] += count;
     // graph[src].count = 1;
     // graph[src].edges.push(Edge{dest, count: 1});
     // graph[dest].count = 1;
@@ -104,8 +109,11 @@ fn add_edges(graph: &mut Graph, src: u16, dest: u16, count: u16) {
 }
 
 fn delete_edges(graph: &mut Graph, src: u16, dest: u16) {
+    let count = graph[(src, dest)];
     graph[(src, dest)] = 0;
     graph[(dest, src)] = 0;
+    graph.edge_counts[src as usize] -= count;
+    graph.edge_counts[dest as usize] -= count;
 }
 
 #[inline]
@@ -133,30 +141,43 @@ fn contract_edge(graph: &mut Graph, u: u16, v: u16) -> u16 {
     result
 }
 
-fn find_verts_of_nth_edge(graph: &Graph, n: u16) -> (u16, u16, u16) {
+fn find_random_edge(graph: &Graph, e_count: u16) -> (u16, u16) {
+    let mut rng = rand::thread_rng();
+
+    // let n = rng.gen_range(0..e_count);
+    // let mut count = 0;
+    // for (u, edges) in graph.adj.iter().enumerate() {
+    //     for (v, ec) in edges[u+1..].iter().enumerate() {
+    //         if count + ec > n {
+    //             return (u as u16, (v + u + 1) as u16);
+    //         }
+    //         count += ec;
+    //     }
+    // }
+
+    let mut u_index = WeightedIndex::new(graph.edge_counts.iter()).unwrap();
+    let u = u_index.sample(&mut rng);
+    let v_count = rng.gen_range(0..graph.edge_counts[u]);
     let mut count = 0;
-    for (u, edges) in graph.adj.iter().enumerate() {
-        for (v, ec) in edges.iter().enumerate() {
-            if count + ec > n {
-                return (u as u16, v as u16, *ec);
-            }
-            count += ec;
+    for (v, ec) in graph.adj[u].iter().enumerate() {
+        if count + ec > v_count {
+            return (u as u16, v as u16);
         }
+        count += ec;
     }
-    panic!("did not find edge {n}");
+
+    panic!("did not find edge");
 }
 
 fn karger(ggraph: &mut Graph, mut ee_count: u16) {
     let v_count = ggraph.nodes.iter().sum();
-    let mut rng = rand::thread_rng();
     loop {
         let graph = &mut ggraph.clone();
         let mut e_count = ee_count;
         for _ in 2..v_count {
             // double because each edge count appears twice in the adjacency matrix
 
-            let edge = rng.gen_range(0..2 * e_count);
-            let (u, v, _) = find_verts_of_nth_edge(graph, edge);
+            let (u, v) = find_random_edge(graph, e_count);
 
             // println!("{edge} = deleting ({} -- {}); {e_count}", s(graph.pos_to_idx[u as usize]), s(graph.pos_to_idx[v as usize]));
             // println!("before {:?} + {:?}",
@@ -208,6 +229,11 @@ fn karger(ggraph: &mut Graph, mut ee_count: u16) {
 
         // break;
         if e_count == 3 {
+            println!("{}", graph.nodes
+                .iter()
+                .filter(|c| **c > 0)
+                .map(|c| *c as u32)
+                .product::<u32>());
             break;
         }
     }
@@ -215,14 +241,13 @@ fn karger(ggraph: &mut Graph, mut ee_count: u16) {
 
 fn main() {
     let input = read_input_lines().unwrap();
-    // let mut graph = array![bitvec![0; SIZE]; SIZE];
-    // let mut graph = vec![array![0; SIZE]; SIZE];
     let mut graph = Graph{
         idx_to_pos: array![0; SIZE],
         pos_to_idx: Vec::with_capacity(1500),
         nodes: Vec::with_capacity(1500),
         nodes_exist: bitvec![0; SIZE],
-        adj: Vec::with_capacity(1500)
+        adj: Vec::with_capacity(1500),
+        edge_counts: Vec::with_capacity(1500),
     };
     let mut nodes = array![0; SIZE];
 
