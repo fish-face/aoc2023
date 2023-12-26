@@ -2,13 +2,18 @@
 name = "aoc2023"
 version = "0.1.0"
 edition = "2021"
- 
+
 [profile.release]
 codegen-units = 1
 lto = "fat"
 panic = "abort"
 strip = "symbols"
 #debug = true
+
+[profile.profile]
+inherits = "release"
+strip = "none"
+debug = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,3 +35,4 @@ num = "0.4.1"
 bitvec = "1.0.1"
 rustc-hash = "1.1.0"
 array-macro = "2.1.8"
+rand = "0.8.5"
