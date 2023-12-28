@@ -1,5 +1,6 @@
 use std::cmp::max;
 use bit_set::BitSet;
+use itertools::Itertools;
 use aoc2023::common::read_input_lines;
 use aoc2023::coord::{Pt, Dir, PointSet};
 use aoc2023::grid::Grid;
@@ -62,33 +63,36 @@ type Graph = Vec<Vec<Edge>>;
 
 fn contract(
     map: &Grid<Tile>,
-    pos: Pt<usize>,
+    pos: Pt<isize>,
     from: usize,
     dist: usize,
+    forward: Option<bool>,
     graph: &mut Graph,
+    digraph: &mut Graph,
     // pt --> (node index, dist from node)
     map_to_graph: &mut Grid<Option<(usize, usize)>>,
 ) {
-    if let Some((node, d_dist)) = map_to_graph[pos] {
+    if let Some((node, d_dist)) = map_to_graph[pos.into()] {
         // println!("arrived at {pos} from {from} and it belongs to {node}");
         if node == from {
             // println!("    cycle");
             return;
         }
-        update_connection(from, d_dist +dist+1, graph, node);
+        update_connection(from, d_dist + dist+1, forward.unwrap(), graph, digraph, node);
         return;
     } else {
-        map_to_graph[pos] = Some((from, dist));
+        map_to_graph[pos.into()] = Some((from, dist));
     }
-    let neighbours = pos
-        .neighbours4();
+    let neighbours = [Dir::N, Dir::E, Dir::S, Dir::W].iter().map(|dir|
+        (dir, pos.walk(*dir, 1))).collect_vec();
+    // let neighbours = pos
+    //     .neighbours4();
     let neighbours = neighbours
         .iter()
         .filter(
-            |&&p|
-                map.contains(p) &&
-                map[p] != Tile::Wall // &&
-                // !visited.contains(**p)
+            |(dir, p)|
+                map.contains_isize(*p) &&
+                map[(*p).into()] != Tile::Wall
         )
         .collect::<Vec<_>>();
 
@@ -98,13 +102,15 @@ fn contract(
         let node = graph.len();
         graph[from].push(Edge{weight: dist+1, to: node});
         graph.push(vec![Edge{weight: dist+1, to: from }]);
+        digraph[from].push(Edge{weight: dist+1, to: node});
+        digraph.push(vec![]);
     } else if neighbours.len() == 2 {
         // part of previous corridor
 
-        for &&neighbour in neighbours.iter() {
-            let next_node = map_to_graph[neighbour];
+        for (dir, neighbour) in neighbours.iter() {
+            let next_node = map_to_graph[(*neighbour).into()];
             if next_node.is_none() {
-                contract(map, neighbour, from, dist + 1, graph, map_to_graph);
+                contract(map, *neighbour, from, dist + 1, forward, graph, digraph, map_to_graph);
             } else {
                 continue;
             }
@@ -116,13 +122,28 @@ fn contract(
         graph.push(vec![Edge{weight: dist+1, to: from }]);
         graph[from].push(Edge{weight: dist+1, to: node});
 
-        for neighbour in neighbours.iter() {
-            contract(map, **neighbour, node, 0, graph, map_to_graph)
+        let forward = forward.expect("found junction without determining a direction");
+        if forward {
+            digraph.push(vec![]);
+            digraph[from].push(Edge{weight: dist+1, to: node});
+        } else {
+            digraph.push(vec![Edge{weight: dist+1, to: from }]);
+            // digraph[from].push(Edge{weight: dist+1, to: node});
+        }
+
+        for (dir, neighbour) in neighbours.iter() {
+            if let Tile::Ice(tile_dir) = map[(*neighbour).into()] {
+                let forward = tile_dir == **dir;
+                // println!("{} {}", neighbour, forward);
+                contract(map, *neighbour, node, 0, Some(forward), graph, digraph, map_to_graph)
+            } else {
+                panic!("bad direction at {neighbour}: {:?}", map[(*neighbour).into()]);
+            }
         }
     }
 }
 
-fn update_connection(from: usize, dist: usize, graph: &mut Graph, next_node: usize) {
+fn update_connection(from: usize, dist: usize, forward: bool, graph: &mut Graph, digraph: &mut Graph, next_node: usize) {
     if let Some(existing_edge) = graph[next_node]
         .iter_mut()
         .find(|edge| edge.to == from)
@@ -140,6 +161,26 @@ fn update_connection(from: usize, dist: usize, graph: &mut Graph, next_node: usi
         // the "from" node
         graph[next_node].push(Edge { weight: dist + 1, to: from });
         graph[from].push(Edge { weight: dist + 1, to: next_node });
+    }
+
+    if forward {
+        if digraph[from]
+            .iter_mut()
+            .find(|edge| edge.to == next_node).is_none()
+        {
+            // although we have visited this position already, we haven't drawn a connection to
+            // the "from" node
+            // println!("    adding edge {}--{} with weight {}", from, next_node, dist + 1);
+            digraph[from].push(Edge { weight: dist + 1, to: next_node });
+        }
+    } else {
+        if digraph[next_node]
+            .iter_mut()
+            .find(|edge| edge.to == from).is_none()
+        {
+            // println!("    adding edge {}--{} with weight {}", next_node, from, dist + 1);
+            digraph[next_node].push(Edge { weight: dist + 1, to: from });
+        }
     }
 }
 
@@ -164,19 +205,26 @@ fn main() {
         input.map(|line| line.as_bytes().to_owned()), Tile::parse
     );
 
-    let start = Pt(1, 0);
-    let target = Pt(map.width - 2, map.height - 1);
-    let hist = PointSet::new(map.width);
+    let start = Pt(1_usize, 0);
+    // let target = Pt(map.width - 2, map.height - 1);
+    // let hist = PointSet::new(map.width);
 
-    println!("{}", part1(&map, start, target.into(), hist, 0));
+    // println!("{}", part1(&map, start, target.into(), hist, 0));
 
     let mut graph = vec![];
     graph.push(vec![]);
+    let mut digraph = vec![];
+    digraph.push(vec![]);
     let mut map_to_graph = Grid::new(map.width, map.height);
     map_to_graph[start.into()] = Some((0, 0));
-    contract(&map, Pt(1, 1), 0, 1, &mut graph, &mut map_to_graph);
+    contract(&map, Pt(1, 1), 0, 1, Some(true), &mut graph, &mut digraph, &mut map_to_graph);
+    let target = digraph.iter().find_position(|edges| edges.len() == 0).unwrap().0;
     let hist = BitSet::new();
     // println!("{:#?}", graph);
+    // println!("{:#?}", digraph);
 
-    println!("{}", longest_path(&graph, 0, graph.len() - 1, hist, 0) - 1);
+    println!("{}", longest_path(&digraph, 0, target, hist, 0) - 1);
+
+    let hist = BitSet::new();
+    println!("{}", longest_path(&graph, 0, target, hist, 0) - 1);
 }
