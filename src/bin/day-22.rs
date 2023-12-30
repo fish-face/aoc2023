@@ -52,34 +52,23 @@ fn print_stack(stack: &Vec<usize>, height: usize) {
     print!("\n");
 }
 
-fn drop(stack: &mut Vec<usize>, bricks: &mut Vec<Brick>, height: usize) -> bool {
+fn drop(bricks: &mut Vec<Brick>, height: usize) -> bool {
     let mut fallen = false;
 
-    for (brick_idx, brick) in bricks.iter_mut().enumerate() {
-        let mut blocked = false;
-        for Pt(x, y, z) in brick_pts(brick) {
-            let below_p = Pt(x, y, z - 1);
-            // are we on the floor, or is the space below not-empty and not-me?
-            if below_p.2 == 0 || (
-                stack[coord(&below_p)] != 0 && stack[coord(&below_p)] != brick_idx + 1
-            ) {
-                blocked = true;
-                break;
-            }
-        }
+    let mut below = [0; 10*10];
+    for brick in bricks.iter_mut() {
+        let dist = brick_pts(brick).map(|Pt(x, y, z)| z - below[x + y * 10]).min().unwrap();
 
-        if !blocked {
-            for Pt(x, y, z) in brick_pts(brick) {
-                let p = Pt(x, y, z);
-                let below_p = Pt(x, y, z - 1);
-                stack[coord(&p)] = 0;
-                stack[coord(&below_p)] = brick_idx + 1;
-            }
-
-            brick.0.2 -= 1;
-            brick.1.2 -= 1;
+        if dist > 1 {
+            brick.0.2 -= dist - 1;
+            brick.1.2 -= dist - 1;
             fallen = true;
         }
+
+        brick_pts(brick).for_each(
+            |Pt(x, y, z)|
+                below[x + y * 10] = max(below[x + y * 10], z)
+        );
     }
 
     fallen
@@ -120,29 +109,27 @@ fn main() {
     let mut bricks = Vec::<Brick>::with_capacity(1400);
 
     let mut height = 0;
-    let mut stack = vec![0; 10 * 10 * 400];
 
-    for (i, line) in input.enumerate() {
+    for line in input {
         let (start, end) = line.split_once('~').unwrap();
         let start = dumbpt(strs_to_nums(start.split(',')).collect_tuple().unwrap());
         let end = dumbpt(strs_to_nums(end.split(',')).collect_tuple().unwrap());
 
         height = max(height, max(start.2, end.2));
-        let brick = Brick(start, end);
+        let brick = Brick(Pt(min(start.0, end.0), min(start.1, end.1), min(start.2, end.2)),
+                          Pt(max(start.0, end.0), max(start.1, end.1), max(start.2, end.2)));
 
-        for p in brick_pts(&brick) {
-            stack[coord(&p)] = i + 1;
-        }
         bricks.push(brick);
 
     }
 
     // STEP 1: drop blocks
-    while drop(&mut stack, &mut bricks, height) {}
+    bricks.sort_unstable_by_key(|brick| brick.0.2);
+    while drop(&mut bricks, height) {}
 
     // relabel bricks in final height order
-    bricks.sort_unstable_by(
-        |a, b| min(a.0.2, a.1.2).cmp(min(&b.0.2, &b.1.2))
+    bricks.sort_unstable_by_key(
+        |Brick(Pt(_, _, z1), _)| *z1
     );
 
     let mut stack = vec![0; 10 * 10 * 400];
