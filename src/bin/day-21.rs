@@ -2,10 +2,16 @@ use num::{Integer, pow};
 use aoc2023::common::read_input_lines;
 use aoc2023::coord::{PointSet, Pt};
 
-fn spread(map: &PointSet<usize>, reachable: &mut PointSet<usize>) {
+fn spread(
+    map: &PointSet<usize>,
+    even: bool,
+    frontier: &mut PointSet<usize>,
+    reachable_odd: &mut PointSet<usize>,
+    reachable_even: &mut PointSet<usize>
+) {
     let mut next_reachable = PointSet::new(map.width());
 
-    for p in reachable.iter() {
+    for p in frontier.iter() {
         for neighbour in p.neighbours4() {
             if p.0 < map.width() && p.1 < map.width() && !map.contains(neighbour) {
                 next_reachable.insert(neighbour)
@@ -13,33 +19,34 @@ fn spread(map: &PointSet<usize>, reachable: &mut PointSet<usize>) {
         }
     }
 
-    *reachable = next_reachable;
+    next_reachable.storage.difference_with(&reachable_odd.storage);
+    next_reachable.storage.difference_with(&reachable_even.storage);
+    *frontier = next_reachable;
+    if even {
+        reachable_even.storage.union_with(&frontier.storage);
+    } else {
+        reachable_odd.storage.union_with(&frontier.storage);
+    }
 }
 
 fn simulate_twice(map: &PointSet<usize>, initial: &mut PointSet<usize>, iters_a: usize, iters_b: usize) -> usize {
-    for _ in 0..iters_a {
-        spread(&map, initial);
+    let mut even_reachable = PointSet::new(map.width());
+    let mut odd_reachable = PointSet::new(map.width());
+    for i in 0..iters_a {
+        spread(&map, i % 2 == 0, initial, &mut even_reachable, &mut odd_reachable);
     }
-    let count_a = initial.storage.iter().count();
+    let to_use = if iters_a % 2 == 0 {
+        &even_reachable
+    } else {
+        &odd_reachable
+    };
+    let count_a = to_use.storage.iter().count();
 
-    for _ in 0..(iters_b - iters_a) {
-        spread(&map, initial);
-    }
-    // for y in 0..map.width() {
-    //     for x in 0..map.width() {
-    //         let p = Pt(x, y);
-    //         if map.contains(p) {
-    //             print!("{}", '#');
-    //         } else if initial.contains(p) {
-    //             print!("{}", 'O');
-    //         } else {
-    //             print!("{}", '.');
-    //         }
-    //     }
-    //     print!("\n");
-    // }
-    // print!("\n");
-    // let count_b = initial.storage.iter().count();
+    *initial = if iters_b % 2 == 0 {
+        even_reachable
+    } else {
+        odd_reachable
+    };
 
     count_a
 }
