@@ -42,6 +42,10 @@ fn simulate_twice(map: &PointSet<usize>, initial: &mut PointSet<usize>, iters_a:
     };
     let count_a = to_use.storage.iter().count();
 
+    for i in 0..(iters_b - iters_a) {
+        spread(&map, (iters_a + i) % 2 == 0, initial, &mut even_reachable, &mut odd_reachable);
+    }
+
     *initial = if iters_b % 2 == 0 {
         even_reachable
     } else {
